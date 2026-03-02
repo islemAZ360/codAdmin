@@ -16,6 +16,7 @@ import {
     orderBy
 } from 'firebase/firestore'
 import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Key, Download, AlertTriangle, RefreshCw, ChevronDown, ChevronUp, PlusCircle, Globe } from 'lucide-react'
+import adminLogo from './public/admin.png'
 
 function App() {
     const [user, setUser] = useState<User | null>(null)
@@ -225,7 +226,7 @@ function App() {
                             <div className="relative">
                                 <div className="absolute -inset-4 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
                                 <div className="relative bg-emerald-500/10 p-1 rounded-[2.5rem] border border-emerald-500/20 shadow-inner overflow-hidden">
-                                    <img src="/admin.png" alt="Admin Core" className="w-24 h-24 object-cover rounded-[2rem]" />
+                                    <img src={adminLogo} alt="Admin Core" className="w-24 h-24 object-cover rounded-[2rem]" />
                                 </div>
                             </div>
                         </div>
