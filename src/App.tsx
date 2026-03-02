@@ -15,7 +15,7 @@ import {
     query,
     orderBy
 } from 'firebase/firestore'
-import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Key, Download, Plus, AlertTriangle, RefreshCw, ChevronDown, ChevronUp, Unlock, Lock, PlusCircle, Clock, Globe } from 'lucide-react'
+import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Key, Download, AlertTriangle, RefreshCw, ChevronDown, ChevronUp, PlusCircle, Globe } from 'lucide-react'
 
 function App() {
     const [user, setUser] = useState<User | null>(null)
@@ -192,50 +192,7 @@ function App() {
         URL.revokeObjectURL(url)
     }
 
-    const handleExtendTransfers = async (licenseId: string, currentMax: number) => {
-        const newMax = prompt(`Current max transfers: ${currentMax}\nEnter new max:`, String(currentMax + 3))
-        if (!newMax) return
-        try {
-            await updateDoc(doc(db, 'license_keys', licenseId), { maxTransfers: parseInt(newMax) })
-        } catch (err: any) { alert('Error: ' + err.message) }
-    }
 
-    const handleAllowViolation = async (licenseId: string, violatingDeviceId: string) => {
-        if (!window.confirm(`Allow this device to use the key? This will transfer the key to the violating device.`)) return
-        try {
-            const license = licenses.find(l => l.id === licenseId)
-            if (!license) return
-            const updatedViolations = (license.violationAttempts || []).map((v: any) =>
-                v.deviceId === violatingDeviceId ? { ...v, resolved: true, resolvedAction: 'allowed' } : v
-            )
-            await updateDoc(doc(db, 'license_keys', licenseId), {
-                deviceId: violatingDeviceId,
-                violationAttempts: updatedViolations
-            })
-        } catch (err: any) { alert('Error: ' + err.message) }
-    }
-
-    const handleDenyViolation = async (licenseId: string, violatingDeviceId: string) => {
-        try {
-            const license = licenses.find(l => l.id === licenseId)
-            if (!license) return
-            const updatedViolations = (license.violationAttempts || []).map((v: any) =>
-                v.deviceId === violatingDeviceId ? { ...v, resolved: true, resolvedAction: 'denied' } : v
-            )
-            await updateDoc(doc(db, 'license_keys', licenseId), { violationAttempts: updatedViolations })
-        } catch (err: any) { alert('Error: ' + err.message) }
-    }
-
-    const handleRevokeLicense = async (licenseId: string) => {
-        if (!window.confirm('REVOKE this license? The user will lose access immediately.')) return
-        try {
-            await updateDoc(doc(db, 'license_keys', licenseId), {
-                isUsed: false, usedByUid: null, usedByEmail: null, usedByName: null,
-                deviceId: null, transfersUsed: 0, previousDevices: [],
-                transferHistory: [], violationAttempts: []
-            })
-        } catch (err: any) { alert('Error: ' + err.message) }
-    }
 
     const unresolvedViolations = useMemo(() => {
         return licenses.reduce((count, l) => {
