@@ -273,7 +273,7 @@ function App() {
                     <div className="flex items-center gap-6">
                         <div className="relative group">
                             <div className="absolute -inset-2 bg-emerald-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <img src="/admin.png" alt="Admin" className="relative w-16 h-16 rounded-2xl border border-white/10 shadow-2xl object-cover" />
+                            <img src={adminLogo} alt="Admin" className="relative w-16 h-16 rounded-2xl border border-white/10 shadow-2xl object-cover" />
                         </div>
                         <div>
                             <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/[0.03] border border-white/5 rounded-full text-emerald-400 text-[9px] font-black uppercase tracking-[0.3em] mb-3 backdrop-blur-md">
