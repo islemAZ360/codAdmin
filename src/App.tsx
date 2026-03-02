@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { auth, db } from './firebase'
 import {
     signInWithEmailAndPassword,
@@ -15,7 +15,7 @@ import {
     query,
     orderBy
 } from 'firebase/firestore'
-import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Clock, Globe, Key, Download, Plus } from 'lucide-react'
+import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Key, Download, Plus, AlertTriangle, RefreshCw, ChevronDown, ChevronUp, Unlock, Lock, PlusCircle, Clock, Globe } from 'lucide-react'
 
 function App() {
     const [user, setUser] = useState<User | null>(null)
@@ -29,8 +29,11 @@ function App() {
     const [activeTab, setActiveTab] = useState<'users' | 'licenses'>('users')
     const [licenses, setLicenses] = useState<any[]>([])
     const [generating, setGenerating] = useState(false)
+    const [expandedLicense, setExpandedLicense] = useState<string | null>(null)
+    const [showGenModal, setShowGenModal] = useState(false)
+    const [genKeyType, setGenKeyType] = useState<'monthly' | 'custom' | 'eternal'>('monthly')
+    const [genCustomMonths, setGenCustomMonths] = useState(6)
 
-    // Update 'now' every minute to refresh online status display
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 60000)
         return () => clearInterval(interval)
@@ -49,13 +52,11 @@ function App() {
             }
             setLoading(false)
         })
-
         return () => unsubscribe()
     }, [])
 
     useEffect(() => {
         if (!user) return
-
         const q = query(collection(db, 'users'))
         const unsubscribe = onSnapshot(q,
             (snapshot) => {
@@ -72,13 +73,11 @@ function App() {
                 }
             }
         )
-
         return () => unsubscribe()
     }, [user])
 
     useEffect(() => {
         if (!user || activeTab !== 'licenses') return
-
         const q = query(collection(db, 'license_keys'), orderBy('createdAt', 'desc'))
         const unsubscribe = onSnapshot(q,
             (snapshot) => {
@@ -91,90 +90,95 @@ function App() {
             (err) => {
                 console.error('Licenses Snapshot Error:', err)
                 if (err.code === 'permission-denied') {
-                    // This alert explains why keys don't show after generation
-                    alert('SECURITY_ERROR: Failed to retrieve license keys. Ensure you have applied the Firestore Rules I provided.')
+                    alert('SECURITY_ERROR: Failed to retrieve license keys. Ensure you have applied the Firestore Rules.')
                 }
             }
         )
-
         return () => unsubscribe()
     }, [user, activeTab])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
-        try {
-            await signInWithEmailAndPassword(auth, email, password)
-        } catch (err: any) {
-            setError(err.message)
-        }
+        try { await signInWithEmailAndPassword(auth, email, password) }
+        catch (err: any) { setError(err.message) }
     }
 
-    const handleLogout = () => {
-        signOut(auth)
-    }
+    const handleLogout = () => signOut(auth)
 
     const handleStatusUpdate = async (userId: string, status: string) => {
-        try {
-            await updateDoc(doc(db, 'users', userId), { status })
-        } catch (err: any) {
-            alert('Error updating status: ' + err.message)
-        }
+        try { await updateDoc(doc(db, 'users', userId), { status }) }
+        catch (err: any) { alert('Error: ' + err.message) }
     }
 
     const getOnlineStatus = (lastSeen: string | undefined) => {
         if (!lastSeen) return false
-        const lastSeenDate = new Date(lastSeen).getTime()
-        const diffInMinutes = (now - lastSeenDate) / 1000 / 60
-        return diffInMinutes < 5 // Consider online if seen within last 5 minutes
+        return (now - new Date(lastSeen).getTime()) / 1000 / 60 < 5
     }
 
     const formatRelativeTime = (dateString: string | undefined) => {
         if (!dateString) return 'Never'
-        const date = new Date(dateString)
-        const diffInMinutes = Math.floor((now - date.getTime()) / 1000 / 60)
-
-        if (diffInMinutes < 1) return 'Just now'
-        if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-        return date.toLocaleDateString()
+        const diffMin = Math.floor((now - new Date(dateString).getTime()) / 1000 / 60)
+        if (diffMin < 1) return 'Just now'
+        if (diffMin < 60) return `${diffMin}m ago`
+        if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`
+        return new Date(dateString).toLocaleDateString()
     }
 
-    const filteredUsers = users.filter(u =>
-        (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (u.name?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-    )
+    const filteredUsers = useMemo(() => {
+        return users.filter(u =>
+            (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (u.name?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+        ).slice(0, 100)
+    }, [users, searchTerm])
+
+    const filteredLicenses = useMemo(() => {
+        return licenses.filter(l =>
+            (l.key?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (l.usedByEmail?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (l.usedByName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+        ).slice(0, 100)
+    }, [licenses, searchTerm])
 
     const handleGenerateKeys = async () => {
-        if (!window.confirm('Generate 500 new license keys?')) return
         setGenerating(true)
         try {
-            const batchSize = 500
             const batch = writeBatch(db)
             const keysCollection = collection(db, 'license_keys')
 
-            for (let i = 0; i < batchSize; i++) {
-                const key = Math.random().toString(36).substring(2, 10).toUpperCase() + '-' +
-                    Math.random().toString(36).substring(2, 10).toUpperCase()
-
-                const newDocRef = doc(keysCollection)
-                batch.set(newDocRef, {
-                    key,
-                    isUsed: false,
-                    usedByUid: null,
-                    deviceId: null,
-                    createdAt: new Date().toISOString()
-                })
+            let expiresAt: string | null = null
+            let keyTypeLabel = 'eternal'
+            if (genKeyType === 'monthly') {
+                const d = new Date()
+                d.setMonth(d.getMonth() + 1)
+                expiresAt = d.toISOString()
+                keyTypeLabel = 'monthly'
+            } else if (genKeyType === 'custom') {
+                const d = new Date()
+                d.setMonth(d.getMonth() + genCustomMonths)
+                expiresAt = d.toISOString()
+                keyTypeLabel = `${genCustomMonths}mo`
             }
 
+            for (let i = 0; i < 500; i++) {
+                const key = Math.random().toString(36).substring(2, 10).toUpperCase() + '-' +
+                    Math.random().toString(36).substring(2, 10).toUpperCase()
+                const newDocRef = doc(keysCollection)
+                batch.set(newDocRef, {
+                    key, isUsed: false, usedByUid: null, deviceId: null,
+                    createdAt: new Date().toISOString(),
+                    keyType: keyTypeLabel,
+                    expiresAt: expiresAt,
+                    transfersUsed: 0, maxTransfers: 3, lastTransferDate: null,
+                    previousDevices: [], transferHistory: [], violationAttempts: []
+                })
+            }
             await batch.commit()
-            alert('500 keys generated successfully!')
+            alert(`500 ${keyTypeLabel} keys generated!`)
+            setShowGenModal(false)
         } catch (err: any) {
-            console.error('Batch Generation Error:', err)
-            alert('Error generating keys: ' + err.message)
-        } finally {
-            setGenerating(false)
-        }
+            alert('Error: ' + err.message)
+        } finally { setGenerating(false) }
     }
 
     const exportKeys = () => {
@@ -187,6 +191,57 @@ function App() {
         a.click()
         URL.revokeObjectURL(url)
     }
+
+    const handleExtendTransfers = async (licenseId: string, currentMax: number) => {
+        const newMax = prompt(`Current max transfers: ${currentMax}\nEnter new max:`, String(currentMax + 3))
+        if (!newMax) return
+        try {
+            await updateDoc(doc(db, 'license_keys', licenseId), { maxTransfers: parseInt(newMax) })
+        } catch (err: any) { alert('Error: ' + err.message) }
+    }
+
+    const handleAllowViolation = async (licenseId: string, violatingDeviceId: string) => {
+        if (!window.confirm(`Allow this device to use the key? This will transfer the key to the violating device.`)) return
+        try {
+            const license = licenses.find(l => l.id === licenseId)
+            if (!license) return
+            const updatedViolations = (license.violationAttempts || []).map((v: any) =>
+                v.deviceId === violatingDeviceId ? { ...v, resolved: true, resolvedAction: 'allowed' } : v
+            )
+            await updateDoc(doc(db, 'license_keys', licenseId), {
+                deviceId: violatingDeviceId,
+                violationAttempts: updatedViolations
+            })
+        } catch (err: any) { alert('Error: ' + err.message) }
+    }
+
+    const handleDenyViolation = async (licenseId: string, violatingDeviceId: string) => {
+        try {
+            const license = licenses.find(l => l.id === licenseId)
+            if (!license) return
+            const updatedViolations = (license.violationAttempts || []).map((v: any) =>
+                v.deviceId === violatingDeviceId ? { ...v, resolved: true, resolvedAction: 'denied' } : v
+            )
+            await updateDoc(doc(db, 'license_keys', licenseId), { violationAttempts: updatedViolations })
+        } catch (err: any) { alert('Error: ' + err.message) }
+    }
+
+    const handleRevokeLicense = async (licenseId: string) => {
+        if (!window.confirm('REVOKE this license? The user will lose access immediately.')) return
+        try {
+            await updateDoc(doc(db, 'license_keys', licenseId), {
+                isUsed: false, usedByUid: null, usedByEmail: null, usedByName: null,
+                deviceId: null, transfersUsed: 0, previousDevices: [],
+                transferHistory: [], violationAttempts: []
+            })
+        } catch (err: any) { alert('Error: ' + err.message) }
+    }
+
+    const unresolvedViolations = useMemo(() => {
+        return licenses.reduce((count, l) => {
+            return count + (l.violationAttempts || []).filter((v: any) => !v.resolved).length
+        }, 0)
+    }, [licenses])
 
     if (loading) {
         return (
@@ -212,61 +267,37 @@ function App() {
                         <div className="flex justify-center mb-8">
                             <div className="relative">
                                 <div className="absolute -inset-4 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
-                                <div className="relative bg-emerald-500/10 p-5 rounded-[2rem] border border-emerald-500/20 shadow-inner">
-                                    <CheckCircle size={56} className="text-emerald-400" />
+                                <div className="relative bg-emerald-500/10 p-1 rounded-[2.5rem] border border-emerald-500/20 shadow-inner overflow-hidden">
+                                    <img src="/admin.png" alt="Admin Core" className="w-24 h-24 object-cover rounded-[2rem]" />
                                 </div>
                             </div>
                         </div>
 
-                        <h1 className="text-4xl font-black text-center mb-2 tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">Admin Hub</h1>
-                        <p className="text-emerald-400/40 text-center text-[10px] mb-12 font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3">
-                            <span className="h-px w-8 bg-emerald-500/20"></span> Authorized Node <span className="h-px w-8 bg-emerald-500/20"></span>
+                        <h1 className="text-4xl font-black text-center mb-2 tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent italic uppercase">Command Center</h1>
+                        <p className="text-emerald-400/40 text-center text-[9px] mb-12 font-black uppercase tracking-[0.4em] flex items-center justify-center gap-3">
+                            <span className="h-px w-8 bg-emerald-500/20"></span> Neural Gateway Locked <span className="h-px w-8 bg-emerald-500/20"></span>
                         </p>
 
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-emerald-500/50 uppercase tracking-widest ml-4">Terminal Identifier</label>
-                                <div className="relative group/input">
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
-                                        placeholder="admin@islamguide.com"
-                                        required
-                                    />
-                                </div>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
+                                    placeholder="admin@islamguide.com" required />
                             </div>
-
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-emerald-500/50 uppercase tracking-widest ml-4">Access Protocol</label>
-                                <div className="relative group/input">
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
-                                        placeholder="••••••••"
-                                        required
-                                    />
-                                </div>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
+                                    placeholder="••••••••" required />
                             </div>
-
                             {error && (
-                                <div className="p-4 bg-red-500/5 border border-red-500/20 text-red-400 text-xs rounded-2xl text-center font-bold animate-shake">
-                                    {error}
-                                </div>
+                                <div className="p-4 bg-red-500/5 border border-red-500/20 text-red-400 text-xs rounded-2xl text-center font-bold">{error}</div>
                             )}
-
-                            <button
-                                type="submit"
-                                className="w-full relative group/btn overflow-hidden rounded-2xl py-4 font-black text-[#021008] transition-all"
-                            >
+                            <button type="submit" className="w-full relative group/btn overflow-hidden rounded-2xl py-4 font-black text-[#021008] transition-all">
                                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all group-hover/btn:scale-105"></div>
                                 <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000"></div>
-                                <span className="relative flex items-center justify-center gap-2">
-                                    Initialize Session <Activity size={16} />
-                                </span>
+                                <span className="relative flex items-center justify-center gap-2">Initialize Session <Activity size={16} /></span>
                             </button>
                         </form>
                     </div>
@@ -277,320 +308,280 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-[#020804] bg-[radial-gradient(circle_at_0%_0%,_#082e1b_0%,_#020804_100%)] text-white p-6 lg:p-12 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
-            <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-
-            <div className="max-w-7xl mx-auto relative cursor-default">
+        <div className="min-h-screen bg-[#050505] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.15),rgba(5,5,5,1))] text-white p-6 lg:p-8 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
+            <div className="max-w-[1400px] mx-auto relative cursor-default">
                 {/* Header */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-20">
-                    <div>
-                        <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-emerald-500/10 border border-white/5 rounded-full text-emerald-400 text-[9px] font-black uppercase tracking-[0.2em] mb-6">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                            </span>
-                            Grid Command Center
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-16">
+                    <div className="flex items-center gap-6">
+                        <div className="relative group">
+                            <div className="absolute -inset-2 bg-emerald-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <img src="/admin.png" alt="Admin" className="relative w-16 h-16 rounded-2xl border border-white/10 shadow-2xl object-cover" />
                         </div>
-                        <h1 className="text-6xl font-black tracking-tighter flex items-center gap-6 leading-none">
-                            <Users size={64} className="text-emerald-500 drop-shadow-[0_0_20px_rgba(16,185,129,0.4)]" />
-                            <span className="bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">User Ecosystem</span>
-                        </h1>
-                        <p className="text-emerald-400/30 mt-6 text-lg font-medium max-w-xl">Orchestrate permissions, monitor telemetry, and manage activation protocols across the global interview-coder infrastructure.</p>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-4 bg-white/[0.03] border border-white/10 px-10 py-4 rounded-[1.5rem] hover:bg-red-500 hover:text-white hover:border-red-500 transition-all group shadow-2xl backdrop-blur-lg"
-                    >
-                        <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-black text-xs uppercase tracking-widest">Logout Node</span>
-                    </button>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-4 mb-16 p-2 bg-white/[0.02] border border-white/5 rounded-[2rem] self-start inline-flex">
-                    <button
-                        onClick={() => setActiveTab('users')}
-                        className={`flex items-center gap-3 px-10 py-5 rounded-[1.5rem] font-bold transition-all text-xs uppercase tracking-widest ${activeTab === 'users' ? 'bg-emerald-500 text-[#021008] shadow-[0_15px_30px_rgba(16,185,129,0.25)]' : 'text-white/40 hover:text-white/80 hover:bg-white/5'}`}
-                    >
-                        <Users size={16} /> Identities
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('licenses')}
-                        className={`flex items-center gap-3 px-10 py-5 rounded-[1.5rem] font-bold transition-all text-xs uppercase tracking-widest ${activeTab === 'licenses' ? 'bg-emerald-500 text-[#021008] shadow-[0_15px_30px_rgba(16,185,129,0.25)]' : 'text-white/40 hover:text-white/80 hover:bg-white/5'}`}
-                    >
-                        <Key size={16} /> Protocols
-                    </button>
-                </div>
-
-                {/* Dashboard Stats & Search */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-16">
-                    <div className="bg-white/[0.03] border border-white/5 p-10 rounded-[2.5rem] backdrop-blur-md relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-2xl group-hover:bg-emerald-500/10 transition-colors"></div>
-                        <div className="flex items-center justify-between mb-6">
-                            <p className="text-emerald-500/30 text-[9px] font-black uppercase tracking-[0.2em]">{activeTab === 'users' ? 'Registered Units' : 'Total Protocols'}</p>
-                            <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/10">
-                                <Users size={16} className="text-emerald-500" />
+                        <div>
+                            <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/[0.03] border border-white/5 rounded-full text-emerald-400 text-[9px] font-black uppercase tracking-[0.3em] mb-3 backdrop-blur-md">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                System Authorization Alpha <span className="text-white/20">|</span> Online
+                                {unresolvedViolations > 0 && (
+                                    <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[8px] font-black animate-pulse ml-2 shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                                        {unresolvedViolations} ALERT{unresolvedViolations > 1 ? 'S' : ''}
+                                    </span>
+                                )}
                             </div>
+                            <h1 className="text-4xl font-black tracking-tighter flex items-center gap-4 leading-none uppercase italic">
+                                <span className="bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Interview</span>
+                                <span className="text-emerald-500 font-light drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]">Core</span>
+                            </h1>
                         </div>
-                        <p className="text-6xl font-black tracking-tighter">{activeTab === 'users' ? users.length : licenses.length}</p>
                     </div>
-
-                    <div className="bg-white/[0.03] border border-white/5 p-10 rounded-[2.5rem] backdrop-blur-md relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-2xl group-hover:bg-orange-500/10 transition-colors"></div>
-                        <div className="flex items-center justify-between mb-6">
-                            <p className="text-orange-500/30 text-[9px] font-black uppercase tracking-[0.2em]">{activeTab === 'users' ? 'Pending Decryption' : 'Available Keys'}</p>
-                            <div className="bg-orange-500/10 p-2 rounded-xl border border-orange-500/10">
-                                <Clock size={16} className="text-orange-500" />
-                            </div>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden md:block text-right mr-4">
+                            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Active Session</p>
+                            <p className="text-xs font-bold text-zinc-400">{user?.email}</p>
                         </div>
-                        <p className="text-6xl font-black tracking-tighter text-orange-400">
-                            {activeTab === 'users' ? users.filter(u => u.status === 'pending').length : licenses.filter(l => !l.isUsed).length}
-                        </p>
-                    </div>
-
-                    <div className="bg-white/[0.03] border border-white/5 p-10 rounded-[2.5rem] backdrop-blur-md relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-2xl group-hover:bg-blue-500/10 transition-colors"></div>
-                        <div className="flex items-center justify-between mb-6">
-                            <p className="text-blue-500/30 text-[9px] font-black uppercase tracking-[0.2em]">{activeTab === 'users' ? 'Live Telemetry' : 'Active Sessions'}</p>
-                            <div className="bg-blue-500/10 p-2 rounded-xl border border-blue-500/10">
-                                <Globe size={16} className="text-blue-500" />
-                            </div>
-                        </div>
-                        <p className="text-6xl font-black tracking-tighter text-blue-400">
-                            {activeTab === 'users' ? users.filter(u => getOnlineStatus(u.lastSeen)).length : licenses.filter(l => l.isUsed).length}
-                        </p>
-                    </div>
-
-                    <div className="relative group col-span-1">
-                        <div className="absolute -inset-1 bg-white/5 rounded-[2.5rem] blur opacity-20 group-hover:opacity-40 transition"></div>
-                        <div className="relative h-full flex items-center">
-                            <Search className="absolute left-8 text-white/20" size={24} />
-                            <input
-                                type="text"
-                                placeholder="Search the grid..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full h-full bg-white/[0.04] border border-white/10 rounded-[2.5rem] py-8 pl-20 pr-10 text-white focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.06] transition-all placeholder:text-white/10 text-lg font-bold"
-                            />
-                        </div>
+                        <button onClick={handleLogout}
+                            className="flex items-center gap-3 bg-white/[0.02] border border-white/5 px-5 py-3 rounded-2xl hover:bg-red-500/10 hover:border-red-500/20 transition-all group active:scale-95">
+                            <LogOut size={18} className="text-white/40 group-hover:text-red-400 transition-colors" />
+                            <span className="font-black text-[10px] uppercase tracking-widest text-white/60 group-hover:text-red-400 transition-colors">Terminate</span>
+                        </button>
                     </div>
                 </div>
 
+                {/* Tabs & Search Row */}
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
+                    <div className="flex p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl inline-flex backdrop-blur-xl">
+                        <button onClick={() => setActiveTab('users')}
+                            className={`flex items-center gap-3 px-6 py-2.5 rounded-xl font-bold transition-all text-xs ${activeTab === 'users' ? 'bg-white/10 text-white shadow-[0_2px_10px_rgba(0,0,0,0.2)] border border-white/[0.05]' : 'text-white/40 hover:text-white/80'}`}>
+                            <Users size={16} /> Users
+                        </button>
+                        <button onClick={() => setActiveTab('licenses')}
+                            className={`relative flex items-center gap-3 px-6 py-2.5 rounded-xl font-bold transition-all text-xs ${activeTab === 'licenses' ? 'bg-white/10 text-white shadow-[0_2px_10px_rgba(0,0,0,0.2)] border border-white/[0.05]' : 'text-white/40 hover:text-white/80'}`}>
+                            <Key size={16} /> Licenses
+                            {unresolvedViolations > 0 && (
+                                <span className="absolute max-w-fit px-1.5 min-w-[20px] -top-2 -right-2 bg-red-500 text-white h-5 rounded-full text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                    {unresolvedViolations}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    <div className="relative group w-full lg:w-96 drop-shadow-2xl">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                        <input type="text" placeholder="Search accounts, licenses, dates..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl py-2 pl-10 pr-4 text-white text-xs focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.04] transition-all placeholder:text-white/20 shadow-inner" />
+                    </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    {[
+                        { label: activeTab === 'users' ? 'Total Users' : 'Total Keys', value: activeTab === 'users' ? users.length : licenses.length, color: 'text-white' },
+                        { label: activeTab === 'users' ? 'Pending Approval' : 'Available Keys', value: activeTab === 'users' ? users.filter(u => u.status === 'pending').length : licenses.filter(l => !l.isUsed).length, color: 'text-orange-400' },
+                        { label: activeTab === 'users' ? 'Online Now' : (unresolvedViolations > 0 ? 'Active Violations' : 'Online Units'), value: activeTab === 'users' ? users.filter(u => getOnlineStatus(u.lastSeen)).length : unresolvedViolations, color: (activeTab === 'licenses' && unresolvedViolations > 0) ? 'text-red-400' : 'text-emerald-400' }
+                    ].map((stat, i) => (
+                        <div key={i} className="group relative bg-[#0e0e0e] border border-white/[0.05] p-5 rounded-2xl overflow-hidden hover:border-white/10 transition-colors shadow-xl">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">{stat.label}</p>
+                            <p className={`text-3xl font-black tracking-tight ${stat.color}`}>{stat.value}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Main Content */}
                 {activeTab === 'users' ? (
-                    <div className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl shadow-2xl relative">
-                        <div className="absolute inset-0 bg-emerald-500/[0.01] pointer-events-none"></div>
+                    <div className="bg-[#0e0e0e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-white/5 bg-white/[0.02]">
-                                        <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50">Subject Identity</th>
-                                        <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50 text-center">Protocol Status</th>
-                                        <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50">Activity Pulse</th>
-                                        <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50 text-right">Direct Control</th>
+                                    <tr className="border-b border-white/5 bg-white/[0.01]">
+                                        <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Identity</th>
+                                        <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 text-center">Status</th>
+                                        <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Activity</th>
+                                        <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {filteredUsers.map((user) => (
-                                        <tr key={user.id} className="hover:bg-white/[0.03] transition-all group/row relative">
-                                            <td className="px-10 py-10">
-                                                <div className="flex items-center gap-6">
+                                    {filteredUsers.map((u) => (
+                                        <tr key={u.id} className="hover:bg-white/[0.02] transition-colors group/row">
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-5">
                                                     <div className="relative">
-                                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl border transition-all duration-500 shadow-lg ${getOnlineStatus(user.lastSeen) ? 'bg-emerald-500 text-[#021008] border-emerald-400 scale-105' : 'bg-white/[0.03] text-emerald-500/20 border-white/5'}`}>
-                                                            {user.name?.[0].toUpperCase() || '?'}
+                                                        <div className={`w-10 h-10 border rounded-full flex items-center justify-center font-bold text-base ${getOnlineStatus(u.lastSeen) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-white/40 border-white/5'}`}>
+                                                            {u.name?.[0]?.toUpperCase() || '?'}
                                                         </div>
-                                                        {getOnlineStatus(user.lastSeen) && (
-                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-[#020804] animate-pulse"></div>
-                                                        )}
+                                                        {getOnlineStatus(u.lastSeen) && <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-[2.5px] border-[#0a0a0a]"></div>}
                                                     </div>
                                                     <div>
-                                                        <div className="font-black text-xl tracking-tight group-hover/row:text-emerald-400 transition-colors">{user.name || 'Anonymous Unit'}</div>
-                                                        <div className="text-[10px] text-white/30 font-bold mt-1.5 uppercase tracking-widest">{user.email}</div>
-                                                        <div className="text-[10px] text-emerald-500/20 mt-2 font-mono select-all flex items-center gap-2">
-                                                            <Key size={10} className="text-emerald-500/10" /> PWD: {user.password || '••••••••'}
-                                                        </div>
+                                                        <div className="font-bold text-sm tracking-tight text-white mb-0.5">{u.name || 'Anonymous'}</div>
+                                                        <div className="text-[10px] text-white/40 font-medium tracking-wide">{u.email}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-10 py-10 text-center">
-                                                <span className={`inline-flex items-center px-5 py-2 rounded-xl text-[9px] font-black tracking-[0.2em] leading-none border transition-all ${user.status === 'approved'
-                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
-                                                    : 'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]'
-                                                    }`}>
-                                                    {user.status.toUpperCase()}
+                                            <td className="px-5 py-3 text-center">
+                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-[9px] font-bold tracking-[0.15em] uppercase border ${u.status === 'approved'
+                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/10'
+                                                    : 'bg-orange-500/10 text-orange-400 border-orange-500/10'}`}>
+                                                    {(u.status || 'pending')}
                                                 </span>
-                                                <div className="mt-3 text-[9px] text-white/20 font-bold uppercase tracking-widest">Linked {new Date(user.createdAt).toLocaleDateString()}</div>
                                             </td>
-                                            <td className="px-10 py-10">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-2.5 h-2.5 rounded-full ${getOnlineStatus(user.lastSeen) ? 'bg-emerald-400 shadow-[0_0_15px_#10b981] animate-pulse' : 'bg-white/5'}`}></div>
-                                                    <span className={`text-[10px] font-black tracking-widest ${getOnlineStatus(user.lastSeen) ? 'text-emerald-400' : 'text-white/10'}`}>
-                                                        {getOnlineStatus(user.lastSeen) ? 'ACTIVE NODE' : 'DISCONNECTED'}
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[11px] font-bold ${getOnlineStatus(u.lastSeen) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                                        {getOnlineStatus(u.lastSeen) ? 'Online Now' : formatRelativeTime(u.lastSeen)}
                                                     </span>
                                                 </div>
-                                                <div className="text-[9px] text-white/30 font-bold mt-3 flex items-center gap-2 uppercase tracking-widest">
-                                                    <Clock size={12} className="text-emerald-500/20" /> Last Echo: {formatRelativeTime(user.lastSeen)}
-                                                </div>
                                             </td>
-                                            <td className="px-10 py-10 text-right">
-                                                <div className="flex justify-end items-center gap-4">
-                                                    {user.status === 'pending' ? (
-                                                        <button
-                                                            onClick={() => handleStatusUpdate(user.id, 'approved')}
-                                                            className="flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-[#021008] text-[10px] font-black px-8 py-4 rounded-2xl transition-all shadow-[0_15px_35px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 uppercase tracking-widest"
-                                                        >
-                                                            <CheckCircle size={18} /> Grant Protocol
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStatusUpdate(user.id, 'pending')}
-                                                            className="flex items-center gap-3 bg-white/[0.03] border border-white/10 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 text-[10px] font-black px-8 py-4 rounded-2xl transition-all uppercase tracking-widest"
-                                                        >
-                                                            <XCircle size={18} /> Sever Link
-                                                        </button>
-                                                    )}
-                                                </div>
+                                            <td className="px-5 py-3 text-right">
+                                                {u.status === 'pending' ? (
+                                                    <button onClick={() => handleStatusUpdate(u.id, 'approved')}
+                                                        className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black text-[9px] font-bold px-4 py-2 rounded-lg transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                                        <CheckCircle size={14} /> Approve
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => handleStatusUpdate(u.id, 'pending')}
+                                                        className="inline-flex items-center gap-2 bg-white/[0.03] border border-white/5 text-white/50 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 text-[9px] font-bold px-4 py-2 rounded-lg transition-all">
+                                                        <XCircle size={14} /> Revoke
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                             {filteredUsers.length === 0 && (
-                                <div className="p-32 text-center relative overflow-hidden">
-                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_#0b3a24_0%,_transparent_70%)] opacity-10"></div>
-                                    <Users size={80} className="mx-auto text-emerald-500/10 mb-8 animate-pulse" />
-                                    <div className="text-white/20 font-black text-2xl tracking-tighter italic uppercase mb-12">
-                                        No digital signatures detected in this sector.
-                                    </div>
-
-                                    <div className="relative group max-w-lg mx-auto">
-                                        <div className="absolute -inset-1 bg-white/5 rounded-[2rem] blur opacity-30"></div>
-                                        <div className="relative p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-xl">
-                                            <p className="text-orange-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6 flex items-center justify-center gap-3">
-                                                <Activity size={12} /> Debug Synchronizer <Activity size={12} />
-                                            </p>
-                                            <ul className="text-[10px] text-white/30 space-y-3 text-left font-bold uppercase tracking-wider">
-                                                <li className="flex gap-4">
-                                                    <span className="text-emerald-500">01</span>
-                                                    <span>Inject <span className="text-white">Firestore Rules</span> into the Firebase Cloud Terminal.</span>
-                                                </li>
-                                                <li className="flex gap-4">
-                                                    <span className="text-emerald-500">02</span>
-                                                    <span>Verify the <span className="text-white">Users Collection</span> is populated with active nodes.</span>
-                                                </li>
-                                                <li className="flex gap-4">
-                                                    <span className="text-emerald-500">03</span>
-                                                    <span>Scan Browser Console (F12) for <span className="text-red-500">Permission_Denied</span> telemetry.</span>
-                                                </li>
-                                                <li className="flex gap-4">
-                                                    <span className="text-emerald-500">04</span>
-                                                    <span>Initialize a new node registration and wait for <span className="text-white">Real-Time Sync</span>.</span>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
+                                <div className="p-24 text-center">
+                                    <Users size={48} className="mx-auto text-white/10 mb-6" />
+                                    <div className="text-white/40 font-bold text-lg tracking-tight">No users found</div>
                                 </div>
                             )}
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-10 animate-fade-in">
-                        <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-8 pb-8 border-b border-white/5">
-                            <div>
-                                <h2 className="text-4xl font-black tracking-tighter bg-gradient-to-r from-emerald-400 to-white bg-clip-text text-transparent">Key Provisioning Gateway</h2>
-                                <p className="text-white/20 mt-4 text-lg font-medium max-w-xl">Generate, export, and monitor encrypted activation tokens for unauthorized node suppression.</p>
-                            </div>
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <h2 className="text-2xl font-black tracking-tight flex items-center gap-3 italic uppercase">
+                                <Key className="text-emerald-500" size={24} /> License Gateway
+                            </h2>
                             <div className="flex gap-4">
-                                <button
-                                    onClick={exportKeys}
-                                    disabled={licenses.length === 0}
-                                    className="flex items-center gap-3 bg-white/[0.03] border border-white/10 px-8 py-5 rounded-2xl hover:bg-white/10 text-white font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-20 active:scale-95"
-                                >
-                                    <Download size={20} /> Export Local Buffer
+                                <button onClick={exportKeys} disabled={licenses.length === 0}
+                                    className="flex items-center gap-3 bg-white/[0.02] border border-white/5 px-6 py-3 rounded-xl hover:bg-white/[0.05] transition-all text-xs font-bold disabled:opacity-20">
+                                    <Download size={18} /> Export Buffer
                                 </button>
-                                <button
-                                    onClick={handleGenerateKeys}
-                                    disabled={generating}
-                                    className="relative group/gen overflow-hidden flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-[#021008] px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_20px_40px_rgba(16,185,129,0.3)] disabled:opacity-50 active:scale-95"
-                                >
-                                    <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] -translate-x-full group-hover/gen:translate-x-full transition-transform duration-1000"></div>
-                                    <Plus size={20} /> {generating ? 'Processing Cycle...' : 'Generate 500 Protocols'}
+                                <button onClick={() => setShowGenModal(true)}
+                                    className="flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-black px-8 py-3 rounded-xl font-bold text-xs transition-all shadow-[0_4px_20px_rgba(16,185,129,0.3)]">
+                                    <PlusCircle size={18} /> Initialize Keys
                                 </button>
                             </div>
                         </div>
 
-                        <div className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl shadow-2xl">
+                        <div className="bg-[#0e0e0e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="border-b border-white/5 bg-white/[0.02]">
-                                            <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50">Activation Sequence</th>
-                                            <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50 text-center">Lifecycle</th>
-                                            <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50">Provisioned Target</th>
-                                            <th className="px-10 py-8 text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500/50 text-right">Machine signature</th>
+                                        <tr className="border-b border-white/5 bg-white/[0.01]">
+                                            <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Sequence</th>
+                                            <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 text-center">State</th>
+                                            <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Assigned To</th>
+                                            <th className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Alerts</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {licenses.map((license) => (
-                                            <tr key={license.id} className="hover:bg-white/[0.03] transition-all group/row">
-                                                <td className="px-10 py-10">
-                                                    <div className="font-mono text-emerald-400 text-lg font-black tracking-[0.1em] select-all group-hover/row:scale-[1.02] transition-transform origin-left">{license.key}</div>
-                                                    <div className="text-[9px] text-white/20 mt-2 font-bold uppercase tracking-widest italic">Initialized {new Date(license.createdAt).toLocaleDateString()}</div>
+                                        {filteredLicenses.map((l) => (
+                                            <tr key={l.id} className="hover:bg-white/[0.02] transition-colors group/row">
+                                                <td className="px-5 py-4">
+                                                    <div className="font-mono text-emerald-400 text-sm font-bold tracking-wider mb-1 select-all">{l.key}</div>
+                                                    <div className="text-[9px] text-white/20 font-medium uppercase tracking-widest">{l.keyType} • Created {new Date(l.createdAt).toLocaleDateString()}</div>
                                                 </td>
-                                                <td className="px-10 py-10 text-center">
-                                                    <span className={`inline-flex items-center px-5 py-2 rounded-xl text-[9px] font-black tracking-[0.2em] leading-none border transition-all ${license.isUsed
-                                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-                                                        : 'bg-white/[0.03] text-white/20 border-white/5'
-                                                        }`}>
-                                                        {license.isUsed ? 'DEPLOYED' : 'STANDBY'}
+                                                <td className="px-5 py-4 text-center">
+                                                    <span className={`inline-flex px-3 py-1.5 rounded-lg text-[9px] font-bold tracking-widest uppercase border ${l.isUsed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/10' : 'bg-white/5 text-white/20 border-white/5'}`}>
+                                                        {l.isUsed ? 'Active' : 'Standby'}
                                                     </span>
                                                 </td>
-                                                <td className="px-10 py-10">
-                                                    {license.usedByUid ? (
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center font-black text-emerald-500/40 uppercase">
-                                                                {(license.usedByName || 'U')[0]}
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-white/80 font-black text-sm tracking-tight">
-                                                                    {license.usedByName ||
-                                                                        users.find(u => u.id === license.usedByUid)?.name ||
-                                                                        'Linked Unit'}
-                                                                </div>
-                                                                <div className="text-[10px] text-white/20 mt-1 font-bold uppercase tracking-widest">
-                                                                    {license.usedByEmail ||
-                                                                        users.find(u => u.id === license.usedByUid)?.email ||
-                                                                        license.usedByUid}
-                                                                </div>
-                                                            </div>
+                                                <td className="px-5 py-4">
+                                                    {l.usedByEmail ? (
+                                                        <div>
+                                                            <div className="text-xs font-bold text-white mb-0.5">{l.usedByName || 'Linked User'}</div>
+                                                            <div className="text-[10px] text-white/30 font-medium">{l.usedByEmail}</div>
                                                         </div>
-                                                    ) : (
-                                                        <div className="text-white/5 font-black text-[10px] uppercase tracking-[0.3em]">Awaiting Provisioning</div>
-                                                    )}
+                                                    ) : <span className="text-[10px] text-white/10 font-bold uppercase tracking-widest">Unassigned</span>}
                                                 </td>
-                                                <td className="px-10 py-10 text-right font-mono text-[9px] text-white/10 group-hover/row:text-white/30 transition-colors">
-                                                    {license.deviceId || '--- — ---'}
+                                                <td className="px-5 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        {(l.violationAttempts || []).filter((v: any) => !v.resolved).length > 0 && (
+                                                            <div className="flex items-center gap-1.5 bg-red-500/10 text-red-500 px-2 py-1 rounded-md border border-red-500/10 animate-pulse">
+                                                                <AlertTriangle size={12} />
+                                                                <span className="text-[10px] font-black italic">!</span>
+                                                            </div>
+                                                        )}
+                                                        <button onClick={() => setExpandedLicense(expandedLicense === l.id ? null : l.id)}
+                                                            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/30 hover:text-white">
+                                                            {expandedLicense === l.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                {licenses.length === 0 && (
-                                    <div className="p-32 text-center">
-                                        <Key size={80} className="mx-auto text-emerald-500/10 mb-8 animate-pulse" />
-                                        <div className="text-white/20 font-black text-2xl tracking-tighter italic uppercase">
-                                            Vault is empty. No protocols detected.
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Footer Info */}
-                <div className="mt-12 flex flex-col items-center justify-center text-emerald-900/40 text-[10px] font-bold uppercase tracking-widest gap-2">
-                    <p>&copy; 2026 Interview Coder Ecosystem Foundation</p>
-                    <p className="flex items-center gap-2">Protocol 5.2.0-Alpha <span className="w-1 h-1 bg-emerald-900/20 rounded-full"></span> Secure Node Active</p>
+                {/* MODAL: Generate Keys */}
+                {showGenModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md bg-black/40 animate-in fade-in duration-300">
+                        <div className="bg-[#0e0e0e] border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
+                            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-xl font-black tracking-tight italic uppercase">Provision protocol</h3>
+                                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Select key configuration</p>
+                                </div>
+                                <button onClick={() => setShowGenModal(false)} className="text-white/20 hover:text-white transition-colors">
+                                    <XCircle size={24} />
+                                </button>
+                            </div>
+                            <div className="p-8 space-y-8">
+                                <div className="grid grid-cols-3 gap-3">
+                                    {['monthly', 'custom', 'eternal'].map((type) => (
+                                        <button key={type} onClick={() => setGenKeyType(type as any)}
+                                            className={`py-3 px-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${genKeyType === type ? 'bg-emerald-500 text-black border-emerald-400' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/10'}`}>
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {genKeyType === 'custom' && (
+                                    <div className="space-y-4 animate-in slide-in-from-top-2">
+                                        <label className="block text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.3em]">Duration (Months)</label>
+                                        <input type="range" min="1" max="12" value={genCustomMonths} onChange={(e) => setGenCustomMonths(parseInt(e.target.value))}
+                                            className="w-full accent-emerald-500 bg-white/5 h-1.5 rounded-full appearance-none" />
+                                        <div className="text-center font-black text-3xl text-emerald-400">{genCustomMonths} <span className="text-xs uppercase text-white/20">Months</span></div>
+                                    </div>
+                                )}
+
+                                <button onClick={handleGenerateKeys} disabled={generating}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-black py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_10px_30px_rgba(16,185,129,0.3)] disabled:opacity-50">
+                                    {generating ? <RefreshCw className="animate-spin mx-auto" size={18} /> : 'Execute Generation'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.4em]">NEURAL CORE v6.0.4 • © 2026 Admin Hub</p>
+                    <div className="flex gap-8">
+                        <span className="flex items-center gap-2 text-[9px] font-black text-emerald-500/30 uppercase tracking-widest">
+                            <Activity size={10} /> Latency: 24ms
+                        </span>
+                        <span className="flex items-center gap-2 text-[9px] font-black text-emerald-500/30 uppercase tracking-widest">
+                            <Globe size={10} /> Region: Global
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
