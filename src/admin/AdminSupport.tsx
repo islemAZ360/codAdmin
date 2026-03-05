@@ -18,7 +18,12 @@ export const AdminSupport: React.FC = () => {
             list.sort((a, b) => {
                 if (a.status === 'open' && b.status !== 'open') return -1;
                 if (a.status !== 'open' && b.status === 'open') return 1;
-                return b.createdAt?.toMillis() - a.createdAt?.toMillis();
+                const getTime = (d: any) => {
+                    if (!d) return 0;
+                    if (d.toMillis) return d.toMillis();
+                    return new Date(d).getTime();
+                };
+                return getTime(b.createdAt) - getTime(a.createdAt);
             });
             setTickets(list);
         });
@@ -117,7 +122,7 @@ export const AdminSupport: React.FC = () => {
                                     <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">{ticket.subject}</h3>
                                     <div className="flex items-center gap-2 text-xs text-white/40 font-medium">
                                         <span className="text-indigo-400">{ticket.userNickname}</span> •
-                                        {ticket.createdAt?.toDate ? format(ticket.createdAt.toDate(), 'MMM d, yyyy - h:mm a') : 'Unknown Date'}
+                                        {ticket.createdAt ? (ticket.createdAt.toDate ? format(ticket.createdAt.toDate(), 'MMM d, yyyy - h:mm a') : format(new Date(ticket.createdAt), 'MMM d, yyyy - h:mm a')) : 'Unknown Date'}
                                     </div>
                                 </div>
 

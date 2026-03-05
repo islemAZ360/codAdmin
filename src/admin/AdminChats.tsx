@@ -3,8 +3,8 @@ import { collection, onSnapshot, doc, deleteDoc, query, orderBy, QuerySnapshot, 
 import { db } from '../firebase';
 
 import { format } from 'date-fns';
-import { Hash, Trash2, Link as LinkIcon, Lock, Globe, MessageSquare, Eye, X, Activity, ShieldCheck, User, RefreshCw, UserX, Users, ShieldAlert } from 'lucide-react';
-import { updateDoc, arrayRemove, getDocs } from 'firebase/firestore';
+import { Hash, Trash2, Link as LinkIcon, Lock, Globe, MessageSquare, Eye, X, Activity, ShieldCheck, User, RefreshCw, UserX, Users, ShieldAlert, ShieldOff, Zap } from 'lucide-react';
+import { updateDoc, arrayRemove, getDocs, setDoc } from 'firebase/firestore';
 
 export const AdminChats: React.FC = () => {
     const [rooms, setRooms] = useState<any[]>([]);
@@ -14,15 +14,33 @@ export const AdminChats: React.FC = () => {
     const [roomMembers, setRoomMembers] = useState<any[]>([]);
     const [viewMode, setViewMode] = useState<'feed' | 'manifest'>('feed');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
         const unsub = onSnapshot(collection(db, 'rooms'), (snapshot: QuerySnapshot<DocumentData>) => {
             const list: any[] = [];
             snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
-            list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+            list.sort((a, b) => {
+                const getTime = (d: any) => {
+                    if (!d || (!d.toMillis && isNaN(new Date(d).getTime()))) return 0;
+                    if (d.toMillis) return d.toMillis();
+                    return new Date(d).getTime();
+                };
+                return getTime(b.createdAt) - getTime(a.createdAt);
+            });
             setRooms(list);
         });
-        return () => unsub();
+
+        const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snapshot) => {
+            if (snapshot.exists()) {
+                setIsLocked(snapshot.data().isLocked || false);
+            }
+        });
+
+        return () => {
+            unsub();
+            unsubConfig();
+        };
     }, []);
 
     useEffect(() => {
@@ -135,6 +153,41 @@ export const AdminChats: React.FC = () => {
         }
     };
 
+    const handleToggleLockdown = async () => {
+        const newState = !isLocked;
+        if (!window.confirm(`${newState ? 'ACTIVATE' : 'DEACTIVATE'} MESH LOCKDOWN? ${newState ? 'This will prevent all users from creating new rooms.' : ''}`)) return;
+
+        try {
+            await setDoc(doc(db, 'system', 'config'), { isLocked: newState }, { merge: true });
+        } catch (err) {
+            console.error("Lockdown error:", err);
+        }
+    };
+
+    const handlePurgeAll = async () => {
+        if (!window.confirm("CRITICAL: PURGE ALL DATA FROM ALL CHANNELS? THIS CANNOT BE UNDONE.")) return;
+        const confirmPhrase = "TERMINATE MESH";
+        const input = window.prompt(`Type '${confirmPhrase}' to execute scorched earth protocol:`);
+        if (input !== confirmPhrase) return;
+
+        try {
+            const snap = await getDocs(collection(db, 'rooms'));
+            for (const d of snap.docs) {
+                // Wipe messages first
+                const msgsSnap = await getDocs(collection(db, 'rooms', d.id, 'messages'));
+                for (const m of msgsSnap.docs) {
+                    await deleteDoc(doc(db, 'rooms', d.id, 'messages', m.id));
+                }
+                // Wipe room
+                await deleteDoc(doc(db, 'rooms', d.id));
+            }
+            alert("Mesh successfully wiped. All nodes and transmissions purged.");
+        } catch (err) {
+            console.error("Purge error:", err);
+            alert("Purge sequence interrupted.");
+        }
+    };
+
     return (
         <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.02)] backdrop-blur-3xl">
             <div className="flex items-center justify-between p-6 border-b border-white/5 bg-white/[0.02]">
@@ -142,8 +195,26 @@ export const AdminChats: React.FC = () => {
                     <Hash className="text-emerald-400" />
                     COMMUNITY CHATS
                 </h2>
-                <div className="text-[10px] uppercase font-black tracking-widest text-emerald-400/50">
-                    {rooms.length} Active Channels
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={handleToggleLockdown}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${isLocked
+                            ? 'bg-red-500 text-white border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
+                            : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'
+                            }`}
+                    >
+                        {isLocked ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
+                        {isLocked ? 'Mesh Locked' : 'Normal Operations'}
+                    </button>
+                    <button
+                        onClick={handlePurgeAll}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all"
+                    >
+                        <Zap size={14} /> Purge Mesh
+                    </button>
+                    <div className="text-[10px] uppercase font-black tracking-widest text-emerald-400/50">
+                        {rooms.length} Active Channels
+                    </div>
                 </div>
             </div>
 
@@ -169,7 +240,7 @@ export const AdminChats: React.FC = () => {
                                         {room.name}
                                     </div>
                                     <div className="text-[10px] text-white/30 font-medium truncate tracking-tight mt-1 flex items-center gap-2">
-                                        Created by {room.creatorNickname} • {room.createdAt?.toDate ? format(room.createdAt.toDate(), 'MMM d, yyyy') : 'Unknown Date'}
+                                        Created by {room.creatorNickname} • {room.createdAt ? (room.createdAt.toDate ? format(room.createdAt.toDate(), 'MMM d, yyyy') : format(new Date(room.createdAt), 'MMM d, yyyy')) : 'Unknown Date'}
                                     </div>
                                 </div>
                             </div>
@@ -282,7 +353,7 @@ export const AdminChats: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <span className="text-[9px] font-bold text-white/10 uppercase tracking-widest">
-                                                        {msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'HH:mm:ss • MMM d') : 'PENDING'}
+                                                        {msg.createdAt ? (msg.createdAt.toDate ? format(msg.createdAt.toDate(), 'HH:mm:ss • MMM d') : format(new Date(msg.createdAt), 'HH:mm:ss • MMM d')) : 'PENDING'}
                                                     </span>
                                                     <button
                                                         onClick={() => handleDeleteMessage(msg.id)}

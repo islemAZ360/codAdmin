@@ -3,18 +3,30 @@ import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { AdminChats } from './AdminChats';
+import { AdminReports } from './AdminReports';
 import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
-import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { AdminKeys } from './AdminKeys';
+import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database } from 'lucide-react';
+import { setDoc } from 'firebase/firestore';
 
-type AdminTab = 'users' | 'chats' | 'news' | 'support';
+type AdminTab = 'users' | 'inventory' | 'chats' | 'news' | 'support' | 'reports';
 
 export const AdminDashboard: React.FC = () => {
     const logout = () => signOut(auth);
     const [users, setUsers] = useState<any[]>([]);
     const [licenseKeys, setLicenseKeys] = useState<any[]>([]);
+    const [reports, setReports] = useState<any[]>([]);
+    const [systemConfig, setSystemConfig] = useState<any>(null);
+    const [alertText, setAlertText] = useState('');
     const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -35,9 +47,25 @@ export const AdminDashboard: React.FC = () => {
             setLicenseKeys(keysList);
         });
 
+        const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.data();
+                setSystemConfig(data);
+                setAlertText(data.globalAlert || '');
+            }
+        });
+
+        const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
+            const list: any[] = [];
+            snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+            setReports(list);
+        });
+
         return () => {
             unsubUsers();
             unsubKeys();
+            unsubConfig();
+            unsubReports();
         };
     }, []);
 
@@ -51,6 +79,18 @@ export const AdminDashboard: React.FC = () => {
 
     const handleRevoke = async (userId: string) => {
         await updateDoc(doc(db, 'users', userId), { status: 'pending' });
+    };
+
+    const handleUpdateAlert = async () => {
+        try {
+            await setDoc(doc(db, 'system', 'config'), {
+                globalAlert: alertText.trim(),
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            alert("Global broadcast updated.");
+        } catch (err) {
+            console.error("Scale error:", err);
+        }
     };
 
     return (
@@ -68,17 +108,80 @@ export const AdminDashboard: React.FC = () => {
                         <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-md">Admin <span className="text-emerald-400">Control Hub</span></h1>
                         <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.4em] mt-1">Intelligence Access Management</p>
                     </div>
+                    <div className="flex items-center gap-6">
+                        <div className="text-right hidden md:block">
+                            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Active Session</p>
+                            <p className="text-xs font-bold text-emerald-500/60">{auth.currentUser?.email}</p>
+                        </div>
+                        <button
+                            onClick={logout}
+                            className="bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white transition-all duration-300 border border-red-500/30 rounded-xl px-6 py-2.5 font-black uppercase tracking-widest text-xs shadow-[0_4px_20px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                        >
+                            Deactivate Session
+                        </button>
+                    </div>
+                </div>
+
+                {/* Tactical Overview Stats */}
+                <div className="grid grid-cols-4 gap-4 mb-8">
+                    {[
+                        { label: 'Active Agents', value: users.filter(u => u.status === 'approved' && !u.isBanned).length, icon: UsersIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                        { label: 'Signal Violations', value: reports.filter(r => r.status === 'pending').length, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10' },
+                        { label: 'Deployed Keys', value: licenseKeys.length, icon: KeyRound, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+                        { label: 'Mesh Stability', value: '98.4%', icon: Database, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                    ].map((stat, i) => (
+                        <div key={i} className="holographic-island p-5 rounded-3xl border border-white/5 bg-white/[0.02] flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center border border-white/5`}>
+                                <stat.icon size={22} />
+                            </div>
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">{stat.label}</div>
+                                <div className="text-xl font-black text-white leading-none">{stat.value}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Global Alert Control */}
+                <div className="mb-8 p-6 holographic-island rounded-3xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-3xl flex items-center gap-8 group">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+                        <Megaphone size={24} className="group-hover:rotate-12 transition-transform" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/60 mb-2 flex items-center gap-2">
+                            <Radio size={10} className="animate-pulse" /> Global System Broadcast
+                        </div>
+                        <input
+                            type="text"
+                            value={alertText}
+                            onChange={(e) => setAlertText(e.target.value)}
+                            placeholder="Enter system-wide announcement message..."
+                            className="w-full bg-white/[0.03] border border-white/5 rounded-xl py-3 px-5 text-sm font-medium text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 transition-all"
+                        />
+                    </div>
                     <button
-                        onClick={logout}
-                        className="bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white transition-all duration-300 border border-red-500/30 rounded-xl px-6 py-2.5 font-black uppercase tracking-widest text-xs shadow-[0_4px_20px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                        onClick={handleUpdateAlert}
+                        className="bg-amber-500 text-black px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 transition-all hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] active:scale-95"
                     >
-                        Deactivate Session
+                        Transmit
                     </button>
+                    {systemConfig?.globalAlert && (
+                        <button
+                            onClick={async () => {
+                                setAlertText('');
+                                await setDoc(doc(db, 'system', 'config'), { globalAlert: '' }, { merge: true });
+                            }}
+                            className="p-3 text-white/20 hover:text-red-500 transition-all"
+                            title="Kill Broadcast"
+                        >
+                            <Trash2 size={20} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Tab Navigation */}
                 <div className="flex p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-8 inline-flex backdrop-blur-xl">
-                    {(['users', 'chats', 'news', 'support'] as AdminTab[]).map((tab) => (
+                    {(['users', 'inventory', 'chats', 'news', 'support', 'reports'] as AdminTab[]).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -123,7 +226,14 @@ export const AdminDashboard: React.FC = () => {
                                                         {(user.name || user.email || '?')[0].toUpperCase()}
                                                     </div>
                                                     <div className="overflow-hidden">
-                                                        <div className="font-black text-sm text-white/90 truncate">{user.name || 'Anonymous User'}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="font-black text-sm text-white/90 truncate">{user.name || 'Anonymous User'}</div>
+                                                            {userLicense && (
+                                                                <span className={`px-2 py-0.5 rounded bg-black/40 text-[8px] font-black uppercase tracking-widest border border-white/10 ${userLicense.keyType === 'eternal' ? 'text-amber-500' : 'text-indigo-400'}`}>
+                                                                    {userLicense.keyType}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div className="text-[10px] text-white/30 font-medium truncate tracking-tight">{user.email}</div>
                                                     </div>
                                                 </div>
@@ -153,8 +263,23 @@ export const AdminDashboard: React.FC = () => {
                                                         )}
                                                     </div>
                                                     {userLicense && user.status === 'approved' && (
-                                                        <div className="text-[9px] font-black text-white/30 tracking-widest uppercase flex items-center gap-2">
-                                                            <Cpu size={10} /> {transfersUsed} / {maxTransfers} Nodes Linked
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="text-[9px] font-black text-white/30 tracking-widest uppercase flex items-center gap-2">
+                                                                <Cpu size={10} /> {transfersUsed} / {maxTransfers} Nodes Linked
+                                                            </div>
+                                                            {userLicense.expiresAt && (
+                                                                <div className="text-[9px] font-black text-amber-500/80 tracking-widest uppercase bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 inline-block">
+                                                                    {(() => {
+                                                                        const diff = new Date(userLicense.expiresAt).getTime() - now.getTime();
+                                                                        if (diff <= 0) return 'TERMINATED';
+                                                                        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                                                        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                                                        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                                                        const s = Math.floor((diff % (1000 * 60)) / 1000);
+                                                                        return `${d}d ${h}h ${m}m ${s}s`;
+                                                                    })()}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -302,9 +427,11 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                 )}
 
+                {activeTab === 'inventory' && <AdminKeys />}
                 {activeTab === 'chats' && <AdminChats />}
                 {activeTab === 'news' && <AdminNews />}
                 {activeTab === 'support' && <AdminSupport />}
+                {activeTab === 'reports' && <AdminReports />}
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 
 import { Newspaper, Image as ImageIcon, Send, Loader2, Trash2, Star, Megaphone } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
@@ -14,12 +14,20 @@ export const AdminNews: React.FC = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [isFeatured, setIsFeatured] = useState(false);
+    const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
 
     useEffect(() => {
         const unsub = onSnapshot(collection(db, 'news'), (snapshot) => {
             const list: any[] = [];
             snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
-            list.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+            list.sort((a, b) => {
+                const getTime = (d: any) => {
+                    if (!d) return 0;
+                    if (d.toMillis) return d.toMillis();
+                    return new Date(d).getTime();
+                };
+                return getTime(b.createdAt) - getTime(a.createdAt);
+            });
             setNews(list);
         });
         return () => unsub();
@@ -65,13 +73,27 @@ export const AdminNews: React.FC = () => {
                 }
             }
 
-            await addDoc(collection(db, 'news'), {
-                title: title.trim(),
-                content: content.trim(),
-                imageUrl,
-                isFeatured,
-                createdAt: serverTimestamp()
-            });
+            if (editingNewsId) {
+                // Update existing doc
+                const newsRef = doc(db, 'news', editingNewsId);
+                const updateData: any = {
+                    title: title.trim(),
+                    content: content.trim(),
+                    isFeatured
+                };
+                if (imageUrl) updateData.imageUrl = imageUrl;
+
+                await updateDoc(newsRef, updateData);
+            } else {
+                // Add new doc
+                await addDoc(collection(db, 'news'), {
+                    title: title.trim(),
+                    content: content.trim(),
+                    imageUrl,
+                    isFeatured,
+                    createdAt: serverTimestamp()
+                });
+            }
 
             // Reset form
             setTitle('');
@@ -79,6 +101,7 @@ export const AdminNews: React.FC = () => {
             setIsFeatured(false);
             setImageFile(null);
             setImagePreview(null);
+            setEditingNewsId(null);
 
         } catch (err: any) {
             console.error("Error posting news:", err);
@@ -99,6 +122,25 @@ export const AdminNews: React.FC = () => {
         }
     };
 
+    const handleEditClick = (item: any) => {
+        setEditingNewsId(item.id);
+        setTitle(item.title);
+        setContent(item.content);
+        setIsFeatured(item.isFeatured || false);
+        setImagePreview(item.imageUrl || null);
+        setImageFile(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+        setEditingNewsId(null);
+        setTitle('');
+        setContent('');
+        setIsFeatured(false);
+        setImageFile(null);
+        setImagePreview(null);
+    };
+
     return (
         <div className="space-y-6">
             <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.02)] backdrop-blur-3xl p-8">
@@ -107,8 +149,12 @@ export const AdminNews: React.FC = () => {
                         <Newspaper size={24} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black tracking-widest text-white uppercase">Post New Update</h2>
-                        <p className="text-xs text-white/40 tracking-wider">Broadcast to community feed</p>
+                        <h2 className="text-xl font-black tracking-widest text-white uppercase">
+                            {editingNewsId ? 'Edit Intel Report' : 'Post New Update'}
+                        </h2>
+                        <p className="text-xs text-white/40 tracking-wider">
+                            {editingNewsId ? `Modifying ID: ${editingNewsId}` : 'Broadcast to community feed'}
+                        </p>
                     </div>
                 </div>
 
@@ -164,16 +210,25 @@ export const AdminNews: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="flex-1" />
-
-                        <button
-                            type="submit"
-                            disabled={loading || !title.trim() || !content.trim()}
-                            className="bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-50 px-8 py-2.5 h-auto rounded-xl font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                        >
-                            {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                            Broadcast
-                        </button>
+                        <div className="flex-1 flex justify-end gap-3">
+                            {editingNewsId && (
+                                <button
+                                    type="button"
+                                    onClick={cancelEdit}
+                                    className="bg-white/5 text-white/40 hover:text-white px-6 py-2.5 rounded-xl font-bold uppercase tracking-widest text-xs transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={loading || !title.trim() || !content.trim()}
+                                className="bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-50 px-8 py-2.5 h-auto rounded-xl font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                            >
+                                {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                {editingNewsId ? 'Save Changes' : 'Broadcast'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -187,12 +242,22 @@ export const AdminNews: React.FC = () => {
                                 <Star size={10} fill="currentColor" /> Featured Intel
                             </div>
                         )}
-                        <button
-                            onClick={() => handleDeleteNews(item.id)}
-                            className="absolute top-4 right-4 z-10 p-2 bg-red-500/10 text-red-500 hover:bg-red-500 text-white rounded-xl transition-all opacity-0 group-hover:opacity-100 shadow-lg"
-                        >
-                            <Trash2 size={16} />
-                        </button>
+                        <div className="absolute top-4 right-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button
+                                onClick={() => handleEditClick(item)}
+                                className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition-all shadow-lg"
+                                title="Edit Report"
+                            >
+                                <ImageIcon size={16} />
+                            </button>
+                            <button
+                                onClick={() => handleDeleteNews(item.id)}
+                                className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-lg"
+                                title="Purge Intel"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
 
                         {item.imageUrl && (
                             <div className="h-40 mb-4 rounded-xl overflow-hidden border border-white/10 relative">
@@ -202,7 +267,7 @@ export const AdminNews: React.FC = () => {
                         )}
                         <h3 className="font-black text-white text-lg mb-1 uppercase tracking-tight group-hover:text-emerald-400 transition-colors">{item.title}</h3>
                         <p className="text-[10px] font-black text-white/20 mb-3 uppercase tracking-widest flex items-center gap-2">
-                            <Megaphone size={10} /> {item.createdAt?.toDate ? format(item.createdAt.toDate(), 'MMMM d, yyyy') : 'Loading...'}
+                            <Megaphone size={10} /> {item.createdAt ? (item.createdAt.toDate ? format(item.createdAt.toDate(), 'MMMM d, yyyy') : format(new Date(item.createdAt), 'MMMM d, yyyy')) : 'Loading...'}
                         </p>
                         <p className="text-sm text-white/60 leading-relaxed italic line-clamp-3">{item.content}</p>
                     </div>
