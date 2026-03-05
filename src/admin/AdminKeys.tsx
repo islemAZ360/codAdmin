@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy, setDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Zap, Clock, Infinity, ShieldCheck, ShieldAlert, Search, Plus, X, ChevronRight, KeyRound, Cpu } from 'lucide-react';
+import { Zap, Clock, Infinity, ShieldCheck, ShieldAlert, Search, Plus, X, ChevronRight, KeyRound, Cpu, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const AdminKeys: React.FC = () => {
@@ -75,6 +75,29 @@ export const AdminKeys: React.FC = () => {
         } catch (err) {
             console.error(err);
             alert("Failed to synchronize parameters.");
+        }
+    };
+
+    const handleDeleteKey = async (keyData: any) => {
+        if (!window.confirm(`ERASE PROTOCOL: Are you sure you want to permanently delete sequence ${keyData.key}? This will deauthorize any linked node.`)) return;
+
+        try {
+            // 1. If key is used, unbind the user
+            if (keyData.usedByUid) {
+                const userRef = doc(db, 'users', keyData.usedByUid);
+                await updateDoc(userRef, {
+                    status: 'pending',
+                    licenseKey: null,
+                    deviceId: null
+                });
+            }
+
+            // 2. Delete the key
+            await deleteDoc(doc(db, 'license_keys', keyData.id));
+            alert("Sequence successfully purged from the registry.");
+        } catch (err) {
+            console.error("Purge failure:", err);
+            alert("Registry error: Protocol could not be finalized.");
         }
     };
 
@@ -211,8 +234,8 @@ export const AdminKeys: React.FC = () => {
                                     )}
                                 </div>
 
-                                <div className="text-right flex items-center justify-end gap-4">
-                                    <div className="text-xs text-white/50 font-mono">
+                                <div className="text-right flex items-center justify-end gap-2">
+                                    <div className="text-xs text-white/50 font-mono mr-2">
                                         {k.createdAt ? (k.createdAt.toDate ? format(k.createdAt.toDate(), 'yyyy-MM-dd') : format(new Date(k.createdAt), 'yyyy-MM-dd')) : '---'}
                                     </div>
                                     <button
@@ -221,6 +244,13 @@ export const AdminKeys: React.FC = () => {
                                         title="Modify Parameters"
                                     >
                                         <Cpu size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteKey(k)}
+                                        className="p-2 bg-red-500/5 hover:bg-red-500/20 text-white/10 hover:text-red-500 rounded-lg border border-white/5 hover:border-red-500/30 transition-all opacity-0 group-hover:opacity-100"
+                                        title="Purge Sequence"
+                                    >
+                                        <Trash2 size={14} />
                                     </button>
                                 </div>
                             </div>

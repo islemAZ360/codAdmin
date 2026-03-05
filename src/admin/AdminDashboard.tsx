@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { AdminChats } from './AdminChats';
@@ -90,6 +90,33 @@ export const AdminDashboard: React.FC = () => {
             alert("Global broadcast updated.");
         } catch (err) {
             console.error("Scale error:", err);
+        }
+    };
+
+    const handleDeleteUser = async (user: any) => {
+        if (!window.confirm(`ERASE PROTOCOL: Are you sure you want to permanently purge entity ${user.name || user.email}? This action will wipe all node records.`)) return;
+
+        try {
+            // 1. Find if user has a used license key
+            const userLicense = licenseKeys.find(k => k.usedByUid === user.id || k.key === user.licenseKey);
+
+            if (userLicense) {
+                // Unbind the key so it can be used again
+                await updateDoc(doc(db, 'license_keys', userLicense.id), {
+                    usedByUid: null,
+                    usedByEmail: null,
+                    usedByName: null,
+                    deviceId: null,
+                    isUsed: false
+                });
+            }
+
+            // 2. Delete user doc
+            await deleteDoc(doc(db, 'users', user.id));
+            alert("Entity successfully purged from the matrix.");
+        } catch (err) {
+            console.error("Purge failure:", err);
+            alert("Registry error: Protocol could not be finalized.");
         }
     };
 
@@ -306,6 +333,13 @@ export const AdminDashboard: React.FC = () => {
                                                             Revoke
                                                         </button>
                                                     )}
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user)}
+                                                        className="p-2.5 bg-red-500/5 hover:bg-red-500/20 text-white/10 hover:text-red-500 rounded-xl border border-white/5 hover:border-red-500/30 transition-all active:scale-95"
+                                                        title="Purge Entity"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                             </div>
 

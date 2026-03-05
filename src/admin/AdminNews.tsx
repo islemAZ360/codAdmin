@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 
-import { Newspaper, Image as ImageIcon, Send, Loader2, Trash2, Star, Megaphone } from 'lucide-react';
+import { Newspaper, Image as ImageIcon, Send, Loader2, Trash2, Star, Megaphone, Edit2 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { format } from 'date-fns';
 
@@ -15,6 +15,11 @@ export const AdminNews: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [isFeatured, setIsFeatured] = useState(false);
     const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+
+    // Poll State
+    const [showPoll, setShowPoll] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState('');
+    const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
 
     useEffect(() => {
         const unsub = onSnapshot(collection(db, 'news'), (snapshot) => {
@@ -73,6 +78,12 @@ export const AdminNews: React.FC = () => {
                 }
             }
 
+            const pollData = showPoll && pollQuestion.trim() ? {
+                question: pollQuestion.trim(),
+                options: pollOptions.filter(o => o.trim()).map((o, i) => ({ id: `opt-${i}`, text: o.trim(), votes: 0 })),
+                voters: []
+            } : null;
+
             if (editingNewsId) {
                 // Update existing doc
                 const newsRef = doc(db, 'news', editingNewsId);
@@ -81,7 +92,16 @@ export const AdminNews: React.FC = () => {
                     content: content.trim(),
                     isFeatured
                 };
-                if (imageUrl) updateData.imageUrl = imageUrl;
+
+                if (pollData) updateData.poll = pollData;
+                else if (!showPoll) updateData.poll = null;
+
+                // Logic: If NEW file uploaded, update. If preview cleared, remove. Otherwise keep.
+                if (imageFile) {
+                    updateData.imageUrl = imageUrl;
+                } else if (!imagePreview) {
+                    updateData.imageUrl = '';
+                }
 
                 await updateDoc(newsRef, updateData);
             } else {
@@ -91,6 +111,7 @@ export const AdminNews: React.FC = () => {
                     content: content.trim(),
                     imageUrl,
                     isFeatured,
+                    poll: pollData,
                     createdAt: serverTimestamp()
                 });
             }
@@ -102,6 +123,9 @@ export const AdminNews: React.FC = () => {
             setImageFile(null);
             setImagePreview(null);
             setEditingNewsId(null);
+            setShowPoll(false);
+            setPollQuestion('');
+            setPollOptions(['', '']);
 
         } catch (err: any) {
             console.error("Error posting news:", err);
@@ -129,6 +153,17 @@ export const AdminNews: React.FC = () => {
         setIsFeatured(item.isFeatured || false);
         setImagePreview(item.imageUrl || null);
         setImageFile(null);
+
+        if (item.poll) {
+            setShowPoll(true);
+            setPollQuestion(item.poll.question);
+            setPollOptions(item.poll.options.map((o: any) => o.text));
+        } else {
+            setShowPoll(false);
+            setPollQuestion('');
+            setPollOptions(['', '']);
+        }
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -139,21 +174,31 @@ export const AdminNews: React.FC = () => {
         setIsFeatured(false);
         setImageFile(null);
         setImagePreview(null);
+        setShowPoll(false);
+        setPollQuestion('');
+        setPollOptions(['', '']);
     };
 
     return (
         <div className="space-y-6">
-            <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.02)] backdrop-blur-3xl p-8">
+            <div className={`holographic-island rounded-[2rem] overflow-hidden border transition-all duration-500 p-8 ${editingNewsId ? 'border-emerald-500/30 shadow-[0_30px_60px_rgba(16,185,129,0.1),inset_0_0_30px_rgba(16,185,129,0.05)]' : 'border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.02)]'} backdrop-blur-3xl`}>
                 <div className="flex items-center gap-4 mb-6">
                     <div className="h-12 w-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400">
                         <Newspaper size={24} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black tracking-widest text-white uppercase">
-                            {editingNewsId ? 'Edit Intel Report' : 'Post New Update'}
-                        </h2>
+                        <div className="flex items-center gap-3">
+                            <h2 className={`text-xl font-black tracking-widest uppercase transition-colors ${editingNewsId ? 'text-emerald-400' : 'text-white'}`}>
+                                {editingNewsId ? 'Modify Intel Protocol' : 'Post New Update'}
+                            </h2>
+                            {editingNewsId && (
+                                <span className="bg-emerald-500 text-black px-2 py-0.5 rounded text-[8px] font-black uppercase animate-pulse">
+                                    Edit Mode Active
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs text-white/40 tracking-wider">
-                            {editingNewsId ? `Modifying ID: ${editingNewsId}` : 'Broadcast to community feed'}
+                            {editingNewsId ? 'Edit any field below and sync changes to satellites' : 'Broadcast to community feed'}
                         </p>
                     </div>
                 </div>
@@ -175,6 +220,77 @@ export const AdminNews: React.FC = () => {
                         className="w-full h-32 resize-none bg-black/40 border border-white/10 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-white placeholder:text-white/30 outline-none transition-all"
                         required
                     />
+
+                    {/* Poll Configuration */}
+                    <div className={`p-6 rounded-2xl border transition-all ${showPoll ? 'bg-indigo-500/5 border-indigo-500/30' : 'bg-black/20 border-white/5'}`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${showPoll ? 'bg-indigo-500/20 text-indigo-400' : 'bg-white/5 text-white/20'}`}>
+                                    <Send size={16} className={showPoll ? '' : 'opacity-50'} />
+                                </div>
+                                <div>
+                                    <h4 className={`text-xs font-black uppercase tracking-widest ${showPoll ? 'text-indigo-400' : 'text-white/40'}`}>Tactical Poll</h4>
+                                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">Gather intel from the field</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowPoll(!showPoll)}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${showPoll ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'}`}
+                            >
+                                {showPoll ? 'Deactivate Poll' : 'Activate Poll'}
+                            </button>
+                        </div>
+
+                        {showPoll && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <input
+                                    type="text"
+                                    placeholder="Poll Question?"
+                                    value={pollQuestion}
+                                    onChange={(e) => setPollQuestion(e.target.value)}
+                                    className="w-full bg-black/40 border border-indigo-500/20 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder:text-white/20 outline-none text-sm font-medium"
+                                />
+
+                                <div className="space-y-2">
+                                    <div className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Response Options</div>
+                                    {pollOptions.map((opt, idx) => (
+                                        <div key={idx} className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder={`Option ${idx + 1}`}
+                                                value={opt}
+                                                onChange={(e) => {
+                                                    const newOpts = [...pollOptions];
+                                                    newOpts[idx] = e.target.value;
+                                                    setPollOptions(newOpts);
+                                                }}
+                                                className="flex-1 bg-black/40 border border-white/5 focus:border-indigo-500/30 rounded-xl px-4 py-2.5 text-xs text-white/80 placeholder:text-white/10 outline-none"
+                                            />
+                                            {pollOptions.length > 2 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
+                                                    className="p-2.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all border border-red-500/20"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {pollOptions.length < 5 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setPollOptions([...pollOptions, ''])}
+                                            className="w-full py-2 bg-indigo-500/10 border border-dashed border-indigo-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/20 transition-all"
+                                        >
+                                            + Add Intelligence Option
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center gap-4">
                         <label className="flex items-center gap-2 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-all text-white/70">
@@ -246,9 +362,9 @@ export const AdminNews: React.FC = () => {
                             <button
                                 onClick={() => handleEditClick(item)}
                                 className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition-all shadow-lg"
-                                title="Edit Report"
+                                title="Edit Intel"
                             >
-                                <ImageIcon size={16} />
+                                <Edit2 size={16} />
                             </button>
                             <button
                                 onClick={() => handleDeleteNews(item.id)}
