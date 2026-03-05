@@ -15,7 +15,7 @@ import {
     query,
     orderBy
 } from 'firebase/firestore'
-import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Key, Download, AlertTriangle, RefreshCw, ChevronDown, ChevronUp, PlusCircle, Globe } from 'lucide-react'
+import { LogOut, CheckCircle, XCircle, Users, Search, Activity, Key, Download, AlertTriangle, RefreshCw, ChevronDown, ChevronUp, PlusCircle, Globe, Zap, Infinity, Clock, ShieldCheck, Settings, Check } from 'lucide-react'
 import adminLogo from './public/admin.png'
 
 function App() {
@@ -490,40 +490,96 @@ function App() {
 
                 {/* MODAL: Generate Keys */}
                 {showGenModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md bg-black/40 animate-in fade-in duration-300">
-                        <div className="bg-[#0e0e0e] border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
-                            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-black/60 animate-in fade-in duration-300">
+                        <div className="bg-[#0a0a0a] border border-white/10 w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                            <div className="p-8 border-b border-white/5 flex justify-between items-start bg-emerald-500/[0.02]">
                                 <div>
-                                    <h3 className="text-xl font-black tracking-tight italic uppercase">Provision protocol</h3>
-                                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Select key configuration</p>
+                                    <h3 className="text-2xl font-black tracking-tight italic uppercase flex items-center gap-3">
+                                        <ShieldCheck className="text-emerald-500" size={28} />
+                                        Provision Protocol
+                                    </h3>
+                                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.3em] mt-2">Initialize encrypted access sequences</p>
                                 </div>
-                                <button onClick={() => setShowGenModal(false)} className="text-white/20 hover:text-white transition-colors">
+                                <button onClick={() => setShowGenModal(false)} className="bg-white/5 hover:bg-white/10 p-2 rounded-xl text-white/20 hover:text-white transition-all">
                                     <XCircle size={24} />
                                 </button>
                             </div>
-                            <div className="p-8 space-y-8">
-                                <div className="grid grid-cols-3 gap-3">
-                                    {['monthly', 'custom', 'eternal'].map((type) => (
-                                        <button key={type} onClick={() => setGenKeyType(type as any)}
-                                            className={`py-3 px-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${genKeyType === type ? 'bg-emerald-500 text-black border-emerald-400' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/10'}`}>
-                                            {type}
+
+                            <div className="p-8 space-y-8 overflow-y-auto">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {[
+                                        { id: 'monthly', title: 'Monthly Pass', icon: <Clock size={20} />, desc: '30 Day Access', color: 'emerald' },
+                                        { id: 'custom', title: 'Custom Term', icon: <Settings size={20} />, desc: 'Variable Duration', color: 'indigo' },
+                                        { id: 'eternal', title: 'Eternal Core', icon: <Infinity size={20} />, desc: 'Infinite Access', color: 'amber' }
+                                    ].map((tier) => (
+                                        <button
+                                            key={tier.id}
+                                            onClick={() => setGenKeyType(tier.id as any)}
+                                            className={`relative flex flex-col p-6 rounded-3xl border transition-all text-left group overflow-hidden ${genKeyType === tier.id
+                                                ? `bg-${tier.color}-500/10 border-${tier.color}-500/40 shadow-[0_0_20px_rgba(0,0,0,0.4)]`
+                                                : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04] hover:border-white/10'
+                                                }`}
+                                        >
+                                            {genKeyType === tier.id && (
+                                                <div className={`absolute top-4 right-4 text-${tier.color}-400`}>
+                                                    <CheckCircle size={16} fill="currentColor" fillOpacity={0.1} />
+                                                </div>
+                                            )}
+                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${genKeyType === tier.id ? `bg-${tier.color}-500/20 text-${tier.color}-400` : 'bg-white/5 text-white/20'}`}>
+                                                {tier.icon}
+                                            </div>
+                                            <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${genKeyType === tier.id ? `text-${tier.color}-400` : 'text-white/20'}`}>{tier.id}</div>
+                                            <div className="text-sm font-black text-white uppercase tracking-tight mb-1">{tier.title}</div>
+                                            <div className="text-[10px] text-white/30 font-medium">{tier.desc}</div>
                                         </button>
                                     ))}
                                 </div>
 
                                 {genKeyType === 'custom' && (
-                                    <div className="space-y-4 animate-in slide-in-from-top-2">
-                                        <label className="block text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.3em]">Duration (Months)</label>
-                                        <input type="range" min="1" max="12" value={genCustomMonths} onChange={(e) => setGenCustomMonths(parseInt(e.target.value))}
-                                            className="w-full accent-emerald-500 bg-white/5 h-1.5 rounded-full appearance-none" />
-                                        <div className="text-center font-black text-3xl text-emerald-400">{genCustomMonths} <span className="text-xs uppercase text-white/20">Months</span></div>
+                                    <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-8 space-y-6 animate-in slide-in-from-top-4 duration-500">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[11px] font-black text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-2">
+                                                <Settings size={14} /> Duration Configuration
+                                            </label>
+                                            <span className="text-xl font-black text-white">{genCustomMonths} <span className="text-[10px] text-white/20 uppercase tracking-widest">Months</span></span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="24"
+                                            value={genCustomMonths}
+                                            onChange={(e) => setGenCustomMonths(parseInt(e.target.value))}
+                                            className="w-full accent-indigo-500 bg-white/5 h-2 rounded-full appearance-none cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-[9px] font-bold text-white/10 uppercase tracking-widest px-1">
+                                            <span>1 Month</span>
+                                            <span>1 Year</span>
+                                            <span>2 Years</span>
+                                        </div>
                                     </div>
                                 )}
 
-                                <button onClick={handleGenerateKeys} disabled={generating}
-                                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-black py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_10px_30px_rgba(16,185,129,0.3)] disabled:opacity-50">
-                                    {generating ? <RefreshCw className="animate-spin mx-auto" size={18} /> : 'Execute Generation'}
-                                </button>
+                                <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400">
+                                            <Zap size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="text-[11px] font-black text-emerald-500 uppercase tracking-widest">Generation Summary</div>
+                                            <div className="text-lg font-black text-white italic">500 <span className="text-sm not-italic opacity-40">NEW SEQUENCES</span></div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleGenerateKeys}
+                                        disabled={generating}
+                                        className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a] px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-[0_10px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_40px_rgba(16,185,129,0.4)] hover:-translate-y-1 disabled:opacity-50 flex items-center justify-center gap-3 overflow-hidden group/btn relative"
+                                    >
+                                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 pointer-events-none"></div>
+                                        {generating ? <RefreshCw className="animate-spin" size={18} /> : (
+                                            <>INITIALIZE CORE <Check size={18} /></>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
