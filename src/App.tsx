@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { auth } from './firebase'
+import { auth, db } from './firebase'
 import {
     signInWithEmailAndPassword,
     onAuthStateChanged,
     signOut,
     User
 } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 import { Activity } from 'lucide-react'
 import adminLogo from './public/admin.png'
 import { AdminDashboard } from './admin/AdminDashboard'
@@ -18,19 +19,30 @@ function App() {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser && currentUser.email === 'admin@islamguide.com') {
-                setUser(currentUser)
-            } else {
-                setUser(null)
-                if (currentUser) {
-                    signOut(auth)
-                    setError('Unauthorized: Only the designated admin can access this dashboard.')
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                try {
+                    const userDocRef = doc(db, 'users', currentUser.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        setUser(currentUser);
+                    } else {
+                        setUser(null);
+                        await signOut(auth);
+                        setError('Unauthorized: Only the designated admin can access this dashboard.');
+                    }
+                } catch (err: any) {
+                    setUser(null);
+                    await signOut(auth);
+                    setError('Verification failed: ' + err.message);
                 }
+            } else {
+                setUser(null);
             }
-            setLoading(false)
-        })
-        return () => unsubscribe()
+            setLoading(false);
+        });
+        return () => unsubscribe();
     }, [])
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -80,7 +92,7 @@ function App() {
                                 <label className="block text-[10px] font-black text-emerald-500/50 uppercase tracking-widest ml-4">Terminal Identifier</label>
                                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
-                                    placeholder="admin@islamguide.com" required />
+                                    placeholder="admin@system-util.net" required />
                             </div>
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-emerald-500/50 uppercase tracking-widest ml-4">Access Protocol</label>
@@ -99,7 +111,7 @@ function App() {
                         </form>
                     </div>
                 </div>
-                <p className="mt-12 text-emerald-900/40 text-[9px] font-black uppercase tracking-[0.4em]">interview coder v5.2.0 • secure gateway</p>
+                <p className="mt-12 text-emerald-900/40 text-[9px] font-black uppercase tracking-[0.4em]">our-fix v5.2.0 • secure gateway</p>
             </div>
         )
     }
