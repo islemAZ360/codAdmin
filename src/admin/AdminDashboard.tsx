@@ -7,7 +7,7 @@ import { AdminReports } from './AdminReports';
 import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
 import { AdminKeys } from './AdminKeys';
-import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database } from 'lucide-react';
+import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database, Copy, Check } from 'lucide-react';
 import { setDoc } from 'firebase/firestore';
 
 type AdminTab = 'users' | 'inventory' | 'chats' | 'news' | 'support' | 'reports';
@@ -22,6 +22,13 @@ export const AdminDashboard: React.FC = () => {
     const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [now, setNow] = useState(new Date());
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const copyToClipboard = (text: string, id: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -125,8 +132,9 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Background elements */}
             <div className="absolute inset-0 bg-black/95 z-0"></div>
-            <div className="absolute top-[-10%] right-[-10%] w-[800px] h-[800px] rounded-full bg-emerald-900/10 blur-[120px] pointer-events-none z-0"></div>
-            <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-red-900/5 blur-[100px] pointer-events-none z-0"></div>
+            <div className="absolute top-[-10%] right-[-10%] w-[800px] h-[800px] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none z-0"></div>
+            <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-red-500/5 blur-[100px] pointer-events-none z-0"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full bg-indigo-500/5 blur-[150px] pointer-events-none z-0"></div>
 
             <div className="max-w-6xl mx-auto relative z-10">
                 <div className="flex justify-between items-center mb-12 relative group">
@@ -138,7 +146,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex items-center gap-6">
                         <div className="text-right hidden md:block">
                             <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Active Session</p>
-                            <p className="text-xs font-bold text-emerald-500/60">{auth.currentUser?.email}</p>
+                            <p className="text-xs font-bold text-emerald-500/80">{auth.currentUser?.email}</p>
                         </div>
                         <button
                             onClick={logout}
@@ -223,7 +231,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {activeTab === 'users' && (
-                    <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.02)] backdrop-blur-3xl">
+                    <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.03)] backdrop-blur-3xl animate-slide-in-bottom">
                         <div className="grid grid-cols-4 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
                             <div>Tactical Identity</div>
                             <div>Deployment Date</div>
@@ -261,7 +269,15 @@ export const AdminDashboard: React.FC = () => {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div className="text-[10px] text-white/30 font-medium truncate tracking-tight">{user.email}</div>
+                                                            <div className="text-[10px] text-white/30 font-medium truncate tracking-tight flex items-center gap-2">
+                                                                {user.email}
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(user.email, user.id + '-email'); }}
+                                                                    className="hover:text-emerald-400 transition-colors"
+                                                                >
+                                                                    {copiedId === user.id + '-email' ? <Check size={10} /> : <Copy size={10} />}
+                                                                </button>
+                                                            </div>
                                                     </div>
                                                 </div>
                                                 <div className="text-xs text-white/50 font-mono">
@@ -356,8 +372,14 @@ export const AdminDashboard: React.FC = () => {
                                                             <div className="flex items-center justify-between">
                                                                 <div>
                                                                     <div className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Assigned Key</div>
-                                                                    <div className="font-mono text-emerald-400 text-xs bg-emerald-900/10 p-2 rounded-lg border border-emerald-500/20 inline-block">
-                                                                        {user.licenseKey || userLicense?.key || 'None Assigned'}
+                                                                    <div className="font-mono text-emerald-400 text-xs bg-emerald-900/10 p-2 rounded-lg border border-emerald-500/20 flex items-center justify-between group/key">
+                                                                        <span>{user.licenseKey || userLicense?.key || 'None Assigned'}</span>
+                                                                        <button 
+                                                                            onClick={() => copyToClipboard(user.licenseKey || userLicense?.key || '', user.id + '-key-internal')}
+                                                                            className="opacity-0 group-hover/key:opacity-100 transition-opacity p-1 hover:text-white"
+                                                                        >
+                                                                            {copiedId === user.id + '-key-internal' ? <Check size={10} /> : <Copy size={10} />}
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                                 {userLicense && (
@@ -390,9 +412,14 @@ export const AdminDashboard: React.FC = () => {
                                                             )}
                                                             {user.password && (
                                                                 <div>
-                                                                    <div className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Decrypted Passcode</div>
-                                                                    <div className="font-mono text-white/60 text-xs">
-                                                                        {user.password}
+                                                                    <div className="font-mono text-white/60 text-xs flex items-center justify-between group/pass bg-white/[0.03] p-2 rounded-lg border border-white/5">
+                                                                        <span>{user.password}</span>
+                                                                        <button 
+                                                                            onClick={() => copyToClipboard(user.password, user.id + '-pass')}
+                                                                            className="opacity-0 group-hover/pass:opacity-100 transition-opacity p-1 hover:text-white"
+                                                                        >
+                                                                            {copiedId === user.id + '-pass' ? <Check size={10} /> : <Copy size={10} />}
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -461,7 +488,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                 )}
 
-                {activeTab === 'inventory' && <AdminKeys />}
+                {activeTab === 'inventory' && <AdminKeys users={users} />}
                 {activeTab === 'chats' && <AdminChats />}
                 {activeTab === 'news' && <AdminNews />}
                 {activeTab === 'support' && <AdminSupport />}

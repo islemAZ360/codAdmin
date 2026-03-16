@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Zap, Clock, Infinity, ShieldCheck, ShieldAlert, Search, Plus, X, ChevronRight, KeyRound, Cpu, Trash2 } from 'lucide-react';
+import { Zap, Clock, Infinity, ShieldCheck, ShieldAlert, Search, Plus, X, ChevronRight, KeyRound, Cpu, Trash2, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 
-export const AdminKeys: React.FC = () => {
+interface AdminKeysProps {
+    users: any[];
+}
+
+export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
     const [keys, setKeys] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
@@ -213,17 +217,31 @@ export const AdminKeys: React.FC = () => {
 
                                 <div>
                                     {k.usedByUid ? (
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
-                                                <ShieldCheck size={12} /> Active
-                                            </div>
-                                            {k.expiresAt && (
-                                                <div className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/40 border ${getCountdown(k.expiresAt) === 'TERMINATED' ? 'text-red-500 border-red-500/20' : 'text-amber-500 border-amber-500/20'}`}>
-                                                    {getCountdown(k.expiresAt)}
+                                        (() => {
+                                            const linkedUser = users.find(u => u.id === k.usedByUid);
+                                            return (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                                                        <ShieldCheck size={12} /> Linked to {linkedUser?.name || 'Authorized User'}
+                                                    </div>
+                                                    {k.expiresAt && (
+                                                        <div className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-black/40 border ${getCountdown(k.expiresAt) === 'TERMINATED' ? 'text-red-500 border-red-500/20' : 'text-amber-500 border-amber-500/20'}`}>
+                                                            {getCountdown(k.expiresAt)}
+                                                        </div>
+                                                    )}
+                                                    <div className="text-[9px] text-white/40 truncate max-w-[150px] flex items-center gap-1 group/email">
+                                                        {k.usedByEmail || linkedUser?.email || 'Linked Node'}
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(k.usedByEmail || linkedUser?.email || ''); }}
+                                                            className="opacity-0 group-hover/email:opacity-100 transition-opacity p-0.5 hover:text-emerald-400"
+                                                            title="Copy User Signal"
+                                                        >
+                                                            <Copy size={8} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            )}
-                                            <div className="text-[9px] text-white/40 truncate max-w-[120px]">{k.usedByEmail || 'Linked Node'}</div>
-                                        </div>
+                                            );
+                                        })()
                                     ) : (
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2 text-white/20 text-[10px] font-black uppercase tracking-widest">
@@ -238,6 +256,13 @@ export const AdminKeys: React.FC = () => {
                                     <div className="text-xs text-white/50 font-mono mr-2">
                                         {k.createdAt ? (k.createdAt.toDate ? format(k.createdAt.toDate(), 'yyyy-MM-dd') : format(new Date(k.createdAt), 'yyyy-MM-dd')) : '---'}
                                     </div>
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(k.key); }}
+                                        className="p-2 bg-white/5 hover:bg-white/10 text-white/20 hover:text-white rounded-lg border border-white/5 transition-all opacity-0 group-hover:opacity-100"
+                                        title="Copy Signal"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
                                     <button
                                         onClick={() => handleEditKey(k)}
                                         className="p-2 bg-white/5 hover:bg-emerald-500/20 text-white/20 hover:text-emerald-400 rounded-lg border border-white/5 hover:border-emerald-500/30 transition-all opacity-0 group-hover:opacity-100"
