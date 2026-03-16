@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Zap, Clock, Infinity, ShieldCheck, ShieldAlert, Search, Plus, X, ChevronRight, KeyRound, Cpu, Trash2, Copy, Check } from 'lucide-react';
+import { Zap, Clock, Infinity, ShieldCheck, ShieldAlert, Search, Plus, X, ChevronRight, KeyRound, Cpu, Trash2, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface AdminKeysProps {
