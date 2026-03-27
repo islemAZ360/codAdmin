@@ -11,6 +11,7 @@ interface PaymentRequest {
     planId: string;
     transactionId: string;
     status: 'pending' | 'approved' | 'rejected';
+    rejectionReason?: string;
     createdAt: any;
 }
 
@@ -52,12 +53,14 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
     };
 
     const handleReject = async (request: PaymentRequest) => {
-        if (!window.confirm(`Reject payment request from ${request.userEmail}?`)) return;
+        const reason = window.prompt(`Enter reason for rejecting ${request.userEmail}:`, "Invalid transaction ID / Payment not received");
+        if (reason === null) return; // Cancelled
         
         setIsActioning(request.id);
         try {
             await updateDoc(doc(db, 'payment_requests', request.id), {
                 status: 'rejected',
+                rejectionReason: reason,
                 rejectedAt: new Date().toISOString()
             });
         } catch (error) {
