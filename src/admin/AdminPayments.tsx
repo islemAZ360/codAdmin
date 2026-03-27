@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { doc, updateDoc, deleteDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, query, where, limit, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Check, X, Clock, CreditCard, User, Hash, Calendar, Trash2 } from 'lucide-react';
 
@@ -40,14 +40,33 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
             const q = query(keysRef, where('isUsed', '==', false), where('keyType', '==', requiredType), limit(1));
             const querySnapshot = await getDocs(q);
 
-            if (querySnapshot.empty) {
-                alert(`CRITICAL ERROR: No dormant ${requiredType} sequences available in the vault. Please initialize new keys first.`);
-                return;
-            }
+            let keyString = '';
+            let keyId = '';
 
-            const keyDoc = querySnapshot.docs[0];
-            const keyData = keyDoc.data();
-            const keyString = keyData.key;
+            if (querySnapshot.empty) {
+                // Generate new key on the fly
+                keyString = Math.random().toString(36).substring(2, 12).toUpperCase();
+                keyId = keyString;
+                
+                await setDoc(doc(db, 'license_keys', keyId), {
+                    key: keyString,
+                    keyType: requiredType,
+                    durationDays: requiredType === 'eternal' ? null : (request.planId === 'monthly' ? 30 : 180),
+                    expiresAt: null,
+                    createdAt: new Date().toISOString(),
+                    usedByUid: request.userId || null,
+                    usedByEmail: request.userEmail,
+                    transfersUsed: 0,
+                    maxTransfers: 3,
+                    transferHistory: [],
+                    isUsed: true,
+                    activatedAt: new Date().toISOString()
+                });
+            } else {
+                const keyDoc = querySnapshot.docs[0];
+                keyString = keyDoc.data().key;
+                keyId = keyDoc.id;
+            }
 
             // 3. Update Payment Request
             await updateDoc(doc(db, 'payment_requests', request.id), {
@@ -63,13 +82,15 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                     licenseKey: keyString
                 });
 
-                // 5. Mark Key as Used
-                await updateDoc(doc(db, 'license_keys', keyDoc.id), {
-                    isUsed: true,
-                    usedByUid: request.userId,
-                    usedByEmail: request.userEmail,
-                    activatedAt: new Date().toISOString()
-                });
+                // 5. Mark Key as Used (if we picked it from pool)
+                if (!querySnapshot.empty) {
+                    await updateDoc(doc(db, 'license_keys', keyId), {
+                        isUsed: true,
+                        usedByUid: request.userId,
+                        usedByEmail: request.userEmail,
+                        activatedAt: new Date().toISOString()
+                    });
+                }
                 alert(`MAPPING SUCCESS: Key ${keyString} provisioned to ${request.userEmail}`);
             } else {
                 alert(`Payment approved. Key ${keyString} is reserved but user is NOT REGISTERED. They must sign up with this email: ${request.userEmail}`);
