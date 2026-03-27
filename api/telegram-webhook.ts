@@ -120,7 +120,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         } catch (error: any) {
             console.error('Webhook Error:', error);
-            await answerCallback(callbackQuery.id, 'Error: ' + error.message);
+            // Send the error message back to the user in a Telegram Toast
+            const errorMessage = error.message || 'Unknown Error';
+            await answerCallback(callbackQuery.id, '❌ ERROR: ' + errorMessage);
+            
+            // Optionally update the message to show the error
+            await editMessage(chatId, messageId, originalText + `\n\n⚠️ <b>DATABASE ERROR:</b>\n<code>${errorMessage}</code>`);
         }
     }
 
