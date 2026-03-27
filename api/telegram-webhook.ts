@@ -19,11 +19,17 @@ const db = admin.firestore();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8764951043:AAH2e6mXv0XqhlIcw6D2Lc--0THeBKL35Gs';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    const update = req.body;
+    console.log('Request Path:', req.url);
+    
+    // Diagnostic Ping
+    if (req.method === 'GET') {
+        return res.status(200).json({ status: 'active', message: 'Webhook is alive and reachable.' });
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
-
-    const update = req.body;
     console.log('Received Update:', JSON.stringify(update));
 
     // Handle Callback Queries (Buttons)
