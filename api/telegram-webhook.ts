@@ -10,8 +10,7 @@ import {
     collection, 
     where, 
     limit, 
-    getDocs,
-    Timestamp 
+    getDocs 
 } from 'firebase/firestore';
 
 const firebaseConfig = {
