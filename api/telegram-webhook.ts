@@ -16,7 +16,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8764951043:AAH2e6mXv0XqhlIcw6D2Lc--0THeBKL35Gs';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -24,6 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const update = req.body;
+    console.log('Received Update:', JSON.stringify(update));
 
     // Handle Callback Queries (Buttons)
     if (update.callback_query) {
@@ -31,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = callbackQuery.data;
         const chatId = callbackQuery.message.chat.id;
         const messageId = callbackQuery.message.message_id;
-        const originalText = callbackQuery.message.text;
+        const originalText = callbackQuery.message.text || '';
 
         const [action, docId] = data.split('_');
 
@@ -41,7 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const requestRef = db.collection('payment_requests').doc(docId);
                 const requestDoc = await requestRef.get();
 
-                if (!requestDoc.exists) throw new Error('Request not found');
+                if (!requestDoc.exists) {
+                    await answerCallback(callbackQuery.id, 'Error: Request document not found.');
+                    return res.status(200).send('OK');
+                }
+                
                 const requestData = requestDoc.data()!;
 
                 if (requestData.status !== 'pending') {
@@ -63,19 +68,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     .get();
 
                 let keyString = '';
-                let keyId = '';
 
                 if (availableKeys.empty) {
                     keyString = Math.random().toString(36).substring(2, 12).toUpperCase();
-                    keyId = keyString;
-                    await keysRef.doc(keyId).set({
+                    await keysRef.doc(keyString).set({
                         key: keyString,
                         keyType: requiredType,
                         durationDays: requiredType === 'eternal' ? null : (requestData.planKey === 'monthly' ? 30 : 180),
                         expiresAt: null,
                         createdAt: new Date().toISOString(),
                         usedByUid: requestData.userId || null,
-                        usedByEmail: requestData.userEmail,
+                        usedByEmail: requestData.userEmail || 'unknown',
                         transfersUsed: 0,
                         maxTransfers: 3,
                         transferHistory: [],
@@ -85,11 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 } else {
                     const keyDoc = availableKeys.docs[0];
                     keyString = keyDoc.data().key;
-                    keyId = keyDoc.id;
                     await keyDoc.ref.update({
                         isUsed: true,
-                        usedByUid: requestData.userId,
-                        usedByEmail: requestData.userEmail,
+                        usedByUid: requestData.userId || null,
+                        usedByEmail: requestData.userEmail || 'unknown',
                         activatedAt: new Date().toISOString()
                     });
                 }
@@ -111,7 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
 
                 // 6. Update Message in Telegram
-                await editMessage(chatId, messageId, originalText + `\n\n✅ <b>STATUS: APPROVED</b>\n🔑 <b>KEY:</b> <code>${keyString}</code>\n👤 <b>BY:</b> Admin (Telegram)`);
+                const newText = originalText + `\n\n✅ <b>STATUS: APPROVED</b>\n🔑 <b>KEY:</b> <code>${keyString}</code>\n👤 <b>BY:</b> Admin (Telegram)`;
+                await editMessage(chatId, messageId, newText);
                 await answerCallback(callbackQuery.id, 'Payment Authorized Successfully!');
 
             } else if (action === 'reject') {
@@ -122,13 +125,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     processedVia: 'Telegram'
                 });
 
-                await editMessage(chatId, messageId, originalText + `\n\n❌ <b>STATUS: REJECTED</b>\n👤 <b>BY:</b> Admin (Telegram)`);
+                const newText = originalText + `\n\n❌ <b>STATUS: REJECTED</b>\n👤 <b>BY:</b> Admin (Telegram)`;
+                await editMessage(chatId, messageId, newText);
                 await answerCallback(callbackQuery.id, 'Payment Rejected.');
             }
 
         } catch (error: any) {
-            console.error('Webhook error:', error);
-            await answerCallback(callbackQuery.id, 'Error: ' + error.message);
+            console.error('Webhook processing error:', error);
+            await answerCallback(callbackQuery.id, 'System Error: ' + error.message);
         }
     }
 
@@ -136,25 +140,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function answerCallback(callbackQueryId: string, text: string) {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            callback_query_id: callbackQueryId,
-            text: text
-        })
-    });
+    try {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                callback_query_id: callbackQueryId,
+                text: text
+            })
+        });
+    } catch (e) {
+        console.error('Failed to answer callback:', e);
+    }
 }
 
-async function editMessage(chatId: string, messageId: number, text: string) {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId,
-            text: text,
-            parse_mode: 'HTML'
-        })
-    });
+async function editMessage(chatId: string | number, messageId: number, text: string) {
+    try {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                message_id: messageId,
+                text: text,
+                parse_mode: 'HTML'
+            })
+        });
+    } catch (e) {
+        console.error('Failed to edit message:', e);
+    }
 }
