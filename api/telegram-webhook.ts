@@ -26,7 +26,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8764951043:AAH2e6mXv0XqhlIcw6D2Lc--0THeBKL35Gs';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {

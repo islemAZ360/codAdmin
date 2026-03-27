@@ -7,7 +7,7 @@ import { AdminReports } from './AdminReports';
 import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
 import { AdminKeys } from './AdminKeys';
-import { AdminPayments } from './AdminPayments.tsx';
+import { AdminPayments } from './AdminPayments';
 import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database, Copy, Check } from 'lucide-react';
 import { setDoc } from 'firebase/firestore';
 
@@ -45,7 +45,9 @@ export const AdminDashboard: React.FC = () => {
             usersList.sort((a, b) => {
                 if (a.status === 'pending' && b.status !== 'pending') return -1;
                 if (a.status !== 'pending' && b.status === 'pending') return 1;
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                return dateB - dateA;
             });
             setUsers(usersList);
         });
@@ -425,19 +427,7 @@ export const AdminDashboard: React.FC = () => {
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                            {user.password && (
-                                                                <div>
-                                                                    <div className="font-mono text-white/60 text-xs flex items-center justify-between group/pass bg-white/[0.03] p-2 rounded-lg border border-white/5">
-                                                                        <span>{user.password}</span>
-                                                                        <button 
-                                                                            onClick={() => copyToClipboard(user.password, user.id + '-pass')}
-                                                                            className="opacity-0 group-hover/pass:opacity-100 transition-opacity p-1 hover:text-white"
-                                                                        >
-                                                                            {copiedId === user.id + '-pass' ? <Check size={10} /> : <Copy size={10} />}
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            )}
+
                                                         </div>
                                                     </div>
 

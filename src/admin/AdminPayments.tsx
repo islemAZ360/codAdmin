@@ -8,7 +8,7 @@ interface PaymentRequest {
     userId: string;
     userName: string;
     userEmail: string;
-    planId: string;
+    planKey: string;
     transactionId: string;
     status: 'pending' | 'approved' | 'rejected';
     rejectionReason?: string;
@@ -32,8 +32,8 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
         try {
             // 1. Determine Key Type
             let requiredType = 'monthly';
-            if (request.planId === 'lifetime') requiredType = 'eternal';
-            if (request.planId === 'sixMonths') requiredType = 'custom';
+            if (request.planKey === 'lifetime') requiredType = 'eternal';
+            if (request.planKey === 'sixMonths') requiredType = 'custom';
 
             // 2. Find a dormant key
             const keysRef = collection(db, 'license_keys');
@@ -51,7 +51,7 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                 await setDoc(doc(db, 'license_keys', keyId), {
                     key: keyString,
                     keyType: requiredType,
-                    durationDays: requiredType === 'eternal' ? null : (request.planId === 'monthly' ? 30 : 180),
+                    durationDays: requiredType === 'eternal' ? null : (request.planKey === 'monthly' ? 30 : 180),
                     expiresAt: null,
                     createdAt: new Date().toISOString(),
                     usedByUid: request.userId || null,
@@ -132,8 +132,8 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
     };
 
     const filteredRequests = requests.filter(r => 
-        r.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        r.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.userEmail || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (r.transactionId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.userName && r.userName.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
@@ -197,7 +197,7 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                                 {/* Plan & Transaction */}
                                 <div>
                                     <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-wider mb-1">
-                                        <CreditCard size={12} /> {request.planId}
+                                        <CreditCard size={12} /> {request.planKey}
                                     </div>
                                     <div className="font-mono text-[10px] text-white/60 bg-white/5 px-2 py-1 rounded inline-flex items-center gap-2">
                                         <Hash size={10} /> {request.transactionId}

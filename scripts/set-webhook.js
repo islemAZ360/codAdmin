@@ -1,6 +1,12 @@
 import fetch from 'node-fetch';
 
-const BOT_TOKEN = '8764951043:AAH2e6mXv0XqhlIcw6D2Lc--0THeBKL35Gs';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+if (!BOT_TOKEN) {
+    console.error('Error: TELEGRAM_BOT_TOKEN environment variable is not set.');
+    console.error('Usage: TELEGRAM_BOT_TOKEN=your_token node set-webhook.js https://your-admin.vercel.app');
+    process.exit(1);
+}
 const WEBHOOK_URL = process.argv[2];
 
 if (!WEBHOOK_URL) {
