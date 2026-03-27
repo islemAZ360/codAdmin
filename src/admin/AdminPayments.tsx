@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Check, X, Clock, CreditCard, User, Hash, Calendar, Trash2 } from 'lucide-react';
 
@@ -12,6 +12,7 @@ interface PaymentRequest {
     transactionId: string;
     status: 'pending' | 'approved' | 'rejected';
     rejectionReason?: string;
+    assignedKey?: string;
     createdAt: any;
 }
 
@@ -25,28 +26,58 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
     const [searchTerm, setSearchTerm] = useState('');
 
     const handleApprove = async (request: PaymentRequest) => {
-        if (!window.confirm(`Approve payment for ${request.userEmail}? This will also authorize the user.`)) return;
+        if (!window.confirm(`Authorize payment and provision key for ${request.userEmail}?`)) return;
         
         setIsActioning(request.id);
         try {
-            // 1. Update Payment Request
+            // 1. Determine Key Type
+            let requiredType = 'monthly';
+            if (request.planId === 'lifetime') requiredType = 'eternal';
+            if (request.planId === 'sixMonths') requiredType = 'custom';
+
+            // 2. Find a dormant key
+            const keysRef = collection(db, 'license_keys');
+            const q = query(keysRef, where('isUsed', '==', false), where('keyType', '==', requiredType), limit(1));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                alert(`CRITICAL ERROR: No dormant ${requiredType} sequences available in the vault. Please initialize new keys first.`);
+                return;
+            }
+
+            const keyDoc = querySnapshot.docs[0];
+            const keyData = keyDoc.data();
+            const keyString = keyData.key;
+
+            // 3. Update Payment Request
             await updateDoc(doc(db, 'payment_requests', request.id), {
                 status: 'approved',
-                approvedAt: new Date().toISOString()
+                approvedAt: new Date().toISOString(),
+                assignedKey: keyString
             });
 
-            // 2. Authorize User (if they exist)
+            // 4. Authorize User and Link Key (if registered)
             if (request.userId) {
                 await updateDoc(doc(db, 'users', request.userId), {
-                    status: 'approved'
+                    status: 'approved',
+                    licenseKey: keyString
                 });
-                alert("Payment approved and user authorized.");
+
+                // 5. Mark Key as Used
+                await updateDoc(doc(db, 'license_keys', keyDoc.id), {
+                    isUsed: true,
+                    usedByUid: request.userId,
+                    usedByEmail: request.userEmail,
+                    activatedAt: new Date().toISOString()
+                });
+                alert(`MAPPING SUCCESS: Key ${keyString} provisioned to ${request.userEmail}`);
             } else {
-                alert("Payment approved. User is not registered yet and will be authorized upon registration.");
+                alert(`Payment approved. Key ${keyString} is reserved but user is NOT REGISTERED. They must sign up with this email: ${request.userEmail}`);
             }
+
         } catch (error) {
-            console.error("Approval error:", error);
-            alert("Failed to approve payment.");
+            console.error("Authorization error:", error);
+            alert("Protocol failure: Failed to link sequence.");
         } finally {
             setIsActioning(null);
         }
