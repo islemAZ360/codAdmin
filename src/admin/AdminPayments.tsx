@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Check, X, Clock, CreditCard, User, Hash, Calendar, Trash2, ExternalLink } from 'lucide-react';
+import { Check, X, Clock, CreditCard, User, Hash, Calendar, Trash2 } from 'lucide-react';
 
 interface PaymentRequest {
     id: string;
