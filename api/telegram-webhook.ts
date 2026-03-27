@@ -12,6 +12,7 @@ import {
     limit, 
     getDocs 
 } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDAx3_N8gZYSmBhzEPUIfnIgwZMzPLQGK0",
@@ -25,6 +26,7 @@ const firebaseConfig = {
 // Initialize Firebase Client
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 
@@ -46,6 +48,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const [action, docId] = data.split('_');
 
         try {
+            const adminEmail = process.env.ADMIN_EMAIL;
+            const adminPassword = process.env.ADMIN_PASSWORD;
+
+            if (!adminEmail || !adminPassword) {
+                await answerCallback(callbackQuery.id, '❌ ERROR: ADMIN_EMAIL or ADMIN_PASSWORD not set in Vercel env');
+                return res.status(200).send('OK');
+            }
+
+            try {
+                // Log in as admin to get full Firestore write access
+                await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+            } catch (authErr) {
+                console.error('Webhook Auth Error:', authErr);
+                await answerCallback(callbackQuery.id, '❌ ERROR: Webhook failed to login. Check Admin Email/Pass.');
+                return res.status(200).send('OK');
+            }
+
             if (action === 'approve') {
                 const requestRef = doc(db, 'payment_requests', docId);
                 const requestSnap = await getDoc(requestRef);
