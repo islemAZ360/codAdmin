@@ -349,8 +349,15 @@ export const AdminNews: React.FC = () => {
                 </form>
             </div>
 
-            {/* List of current news */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Tactical Archive Header */}
+            <div className="flex items-center gap-4 mt-12 mb-6">
+                <div className="h-8 w-1 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
+                <h2 className="text-lg font-black tracking-[0.2em] text-white uppercase italic">Bulletin Archive</h2>
+                <div className="h-px flex-1 bg-white/5"></div>
+                <div className="text-[10px] font-black text-indigo-400/50 uppercase tracking-widest">{news.length} Sequences Stored</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {news.map(item => (
                     <div key={item.id} className={`glass-panel p-5 rounded-2xl border bg-black/40 relative group transition-all duration-500 ${item.isFeatured ? 'border-amber-500/30' : 'border-white/5'}`}>
                         {item.isFeatured && (

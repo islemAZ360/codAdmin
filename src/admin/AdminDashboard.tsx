@@ -8,8 +8,7 @@ import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
 import { AdminKeys } from './AdminKeys';
 import { AdminPayments } from './AdminPayments';
-import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database, Copy, Check, Mail } from 'lucide-react';
-import { setDoc } from 'firebase/firestore';
+import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Trash2, Users as UsersIcon, Database, Copy, Check, Mail, User } from 'lucide-react';
 import { useAdminDialog } from './AdminDialogs';
 
 type AdminTab = 'users' | 'inventory' | 'chats' | 'news' | 'support' | 'reports' | 'payments';
@@ -20,8 +19,6 @@ export const AdminDashboard: React.FC = () => {
     const [licenseKeys, setLicenseKeys] = useState<any[]>([]);
     const [reports, setReports] = useState<any[]>([]);
     const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
-    const [systemConfig, setSystemConfig] = useState<any>(null);
-    const [alertText, setAlertText] = useState('');
     const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [now, setNow] = useState(new Date());
@@ -62,9 +59,7 @@ export const AdminDashboard: React.FC = () => {
 
         const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snapshot) => {
             if (snapshot.exists()) {
-                const data = snapshot.data();
-                setSystemConfig(data);
-                setAlertText(data.globalAlert || '');
+                // Config can be used for other global settings if needed
             }
         });
 
@@ -111,6 +106,14 @@ export const AdminDashboard: React.FC = () => {
         }
     };
 
+    const getUserRank = (user: any, license: any) => {
+        if (user.isAdmin) return { label: 'COMMANDER', icon: ShieldAlert, color: 'text-red-500', bg: 'bg-red-500/10' };
+        if (!license) return { label: 'RECRUIT', icon: UsersIcon, color: 'text-white/40', bg: 'bg-white/5' };
+        if (license.keyType === 'eternal') return { label: 'ELITE', icon: Infinity, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+        if (license.keyType === 'monthly') return { label: 'OPERATIVE', icon: Zap, color: 'text-indigo-400', bg: 'bg-indigo-500/10' };
+        return { label: 'AGENT', icon: User, color: 'text-emerald-400', bg: 'bg-emerald-500/10' };
+    };
+
     const handleApprove = async (userId: string) => {
         await updateDoc(doc(db, 'users', userId), { status: 'approved' });
     };
@@ -119,18 +122,7 @@ export const AdminDashboard: React.FC = () => {
         await updateDoc(doc(db, 'users', userId), { status: 'pending' });
     };
 
-    const handleUpdateAlert = async () => {
-        try {
-            await setDoc(doc(db, 'system', 'config'), {
-                globalAlert: alertText.trim(),
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
-            showToast("Global broadcast updated successfully.", "success");
-        } catch (err) {
-            console.error("Scale error:", err);
-            showToast("Failed to update broadcast.", "error");
-        }
-    };
+
 
     const handleDeleteUser = async (user: any) => {
         const confirmed = await showConfirm(
@@ -217,42 +209,7 @@ export const AdminDashboard: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Global Alert Control */}
-                <div className="mb-8 p-6 holographic-island rounded-3xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-3xl flex items-center gap-8 group">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
-                        <Megaphone size={24} className="group-hover:rotate-12 transition-transform" />
-                    </div>
-                    <div className="flex-1">
-                        <div className="text-xs font-black uppercase tracking-[0.3em] text-amber-500/60 mb-2 flex items-center gap-2">
-                            <Radio size={10} className="animate-pulse" /> Global System Broadcast
-                        </div>
-                        <input
-                            type="text"
-                            value={alertText}
-                            onChange={(e) => setAlertText(e.target.value)}
-                            placeholder="Enter system-wide announcement message..."
-                            className="w-full bg-white/[0.03] border border-white/5 rounded-xl py-3 px-5 text-sm font-medium text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 transition-all"
-                        />
-                    </div>
-                    <button
-                        onClick={handleUpdateAlert}
-                        className="bg-amber-500 text-black px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 transition-all hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] active:scale-95"
-                    >
-                        Transmit
-                    </button>
-                    {systemConfig?.globalAlert && (
-                        <button
-                            onClick={async () => {
-                                setAlertText('');
-                                await setDoc(doc(db, 'system', 'config'), { globalAlert: '' }, { merge: true });
-                            }}
-                            className="p-3 text-white/20 hover:text-red-500 transition-all"
-                            title="Kill Broadcast"
-                        >
-                            <Trash2 size={20} />
-                        </button>
-                    )}
-                </div>
+
 
                 {/* Tab Navigation */}
                 <div className="flex p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-8 inline-flex backdrop-blur-xl max-w-full overflow-x-auto custom-scrollbar">
@@ -302,27 +259,28 @@ export const AdminDashboard: React.FC = () => {
                                                     <div className="text-white/30 mr-2 flex-shrink-0">
                                                         {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                                     </div>
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm border transition-all duration-500 ${user.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'}`}>
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm border transition-all duration-500 relative group/avatar ${user.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'}`}>
                                                         {(user.name || user.email || '?')[0].toUpperCase()}
+                                                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border border-black flex items-center justify-center shadow-lg ${getUserRank(user, userLicense).bg} ${getUserRank(user, userLicense).color}`}>
+                                                            {React.createElement(getUserRank(user, userLicense).icon, { size: 10 })}
+                                                        </div>
                                                     </div>
                                                     <div className="overflow-hidden">
                                                         <div className="flex items-center gap-2">
                                                             <div className="font-black text-sm text-white/90 truncate">{user.name || 'Anonymous User'}</div>
-                                                            {userLicense && (
-                                                                <span className={`px-2 py-0.5 rounded bg-black/40 text-xs font-black uppercase tracking-widest border border-white/10 ${userLicense.keyType === 'eternal' ? 'text-amber-500' : 'text-indigo-400'}`}>
-                                                                    {userLicense.keyType}
-                                                                </span>
-                                                            )}
+                                                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-[0.2em] border ${getUserRank(user, userLicense).bg} ${getUserRank(user, userLicense).color} border-current/10 shadow-[0_0_10px_rgba(0,0,0,0.5)]`}>
+                                                                {getUserRank(user, userLicense).label}
+                                                            </span>
                                                         </div>
-                                                            <div className="text-xs text-white/30 font-medium truncate tracking-tight flex items-center gap-2">
+                                                        <div className="text-xs text-white/30 font-medium truncate tracking-tight flex items-center gap-2 mt-0.5">
                                                             <Mail size={10} /> {user.email}
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(user.email, user.id + '-email'); }}
-                                                                    className="hover:text-emerald-400 transition-colors"
-                                                                >
-                                                                    {copiedId === user.id + '-email' ? <Check size={10} /> : <Copy size={10} />}
-                                                                </button>
-                                                            </div>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); copyToClipboard(user.email, user.id + '-email'); }}
+                                                                className="hover:text-emerald-400 transition-colors"
+                                                            >
+                                                                {copiedId === user.id + '-email' ? <Check size={10} /> : <Copy size={10} />}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="text-white/40 font-mono text-xs">
@@ -382,14 +340,14 @@ export const AdminDashboard: React.FC = () => {
                                                     ) : user.status === 'pending' ? (
                                                         <button
                                                             onClick={() => handleApprove(user.id)}
-                                                            className="bg-emerald-500 text-black hover:bg-emerald-400 text-[10px] font-black uppercase tracking-widest px-5 py-2 h-9 transition-all duration-300 rounded-xl border-0 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:scale-105"
+                                                            className="bg-emerald-500 text-black hover:bg-emerald-400 text-xs font-black uppercase tracking-widest px-5 py-2 h-9 transition-all duration-300 rounded-xl border-0 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:scale-105"
                                                         >
                                                             Authorize
                                                         </button>
                                                     ) : (
                                                         <button
                                                             onClick={() => handleRevoke(user.id)}
-                                                            className="bg-transparent hover:bg-red-500/10 text-white/40 hover:text-red-500 text-[10px] font-black uppercase tracking-widest px-5 py-2 h-9 transition-all duration-300 rounded-xl border border-white/10 hover:border-red-500/50"
+                                                            className="bg-transparent hover:bg-red-500/10 text-white/40 hover:text-red-500 text-xs font-black uppercase tracking-widest px-5 py-2 h-9 transition-all duration-300 rounded-xl border border-white/10 hover:border-red-500/50"
                                                         >
                                                             Revoke
                                                         </button>
@@ -410,7 +368,7 @@ export const AdminDashboard: React.FC = () => {
 
                                                     {/* License Details */}
                                                     <div className="space-y-4">
-                                                        <h3 className="text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <h3 className="text-xs font-black text-emerald-500/50 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <KeyRound size={12} /> Key Information
                                                         </h3>
                                                         <div className="bg-black/50 border border-white/5 rounded-xl p-4 space-y-3">
@@ -461,7 +419,7 @@ export const AdminDashboard: React.FC = () => {
 
                                                     {/* Transfer & Violation History */}
                                                     <div className="space-y-4">
-                                                        <h3 className="text-[10px] font-black text-orange-500/50 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <h3 className="text-xs font-black text-orange-500/50 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <Cpu size={12} /> Hardware Transfers & Alerts
                                                         </h3>
                                                         <div className="bg-black/50 border border-white/5 rounded-xl p-0 overflow-hidden divide-y divide-white/5">

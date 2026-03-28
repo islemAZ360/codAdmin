@@ -65,6 +65,14 @@ export const AdminSupport: React.FC = () => {
         }
     };
 
+    const handleSetPriority = async (ticketId: string, priority: 'low' | 'medium' | 'high' | 'urgent') => {
+        try {
+            await updateDoc(doc(db, 'support_tickets', ticketId), { priority });
+        } catch (err) {
+            console.error("Priority error:", err);
+        }
+    };
+
     const filteredTickets = tickets.filter(t =>
         (t.userNickname || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (t.subject || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -108,8 +116,21 @@ export const AdminSupport: React.FC = () => {
                     ) : (
                         filteredTickets.map(ticket => (
                             <div key={ticket.id} className="group glass-panel rounded-2xl border border-white/5 bg-black/40 p-6 relative hover:bg-emerald-900/10 hover:border-emerald-500/30 transition-all duration-300">
-                                <div className="absolute top-6 right-6 flex items-center gap-2">
-                                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all duration-500 ${ticket.status === 'resolved'
+                                <div className="absolute top-6 right-6 flex items-center gap-3">
+                                    <div className="flex bg-black/40 rounded-lg p-1 border border-white/5">
+                                        {(['low', 'medium', 'high', 'urgent'] as const).map(p => (
+                                            <button
+                                                key={p}
+                                                onClick={() => handleSetPriority(ticket.id, p)}
+                                                className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all ${ticket.priority === p 
+                                                    ? (p === 'urgent' ? 'bg-red-500 text-white' : p === 'high' ? 'bg-amber-500 text-black' : p === 'medium' ? 'bg-indigo-500 text-white' : 'bg-emerald-500 text-black')
+                                                    : 'text-white/20 hover:text-white/40'}`}
+                                            >
+                                                {p}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border transition-all duration-500 ${ticket.status === 'resolved'
                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60'
                                         : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
                                         }`}
