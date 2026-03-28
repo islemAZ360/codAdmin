@@ -48,19 +48,22 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                 keyString = Math.random().toString(36).substring(2, 12).toUpperCase();
                 keyId = keyString;
                 
+                const durationDays = requiredType === 'eternal' ? null : (request.planKey === 'monthly' ? 30 : 180);
+                const expiresAt = durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString() : null;
+
                 await setDoc(doc(db, 'license_keys', keyId), {
                     key: keyString,
                     keyType: requiredType,
-                    durationDays: requiredType === 'eternal' ? null : (request.planKey === 'monthly' ? 30 : 180),
-                    expiresAt: null,
+                    durationDays,
+                    expiresAt: request.userId ? expiresAt : null,
                     createdAt: new Date().toISOString(),
                     usedByUid: request.userId || null,
                     usedByEmail: request.userEmail,
                     transfersUsed: 0,
                     maxTransfers: 3,
                     transferHistory: [],
-                    isUsed: true,
-                    activatedAt: new Date().toISOString()
+                    isUsed: !!request.userId,
+                    activatedAt: request.userId ? new Date().toISOString() : null
                 });
             } else {
                 const keyDoc = querySnapshot.docs[0];
@@ -84,11 +87,15 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
 
                 // 5. Mark Key as Used (if we picked it from pool)
                 if (!querySnapshot.empty) {
+                    const durationDays = keyDoc.data().durationDays || (requiredType === 'eternal' ? null : (request.planKey === 'monthly' ? 30 : 180));
+                    const expiresAt = durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString() : null;
+
                     await updateDoc(doc(db, 'license_keys', keyId), {
-                        isUsed: true,
-                        usedByUid: request.userId,
+                        isUsed: !!request.userId,
+                        usedByUid: request.userId || null,
                         usedByEmail: request.userEmail,
-                        activatedAt: new Date().toISOString()
+                        activatedAt: request.userId ? new Date().toISOString() : null,
+                        expiresAt: request.userId ? expiresAt : null
                     });
                 }
                 alert(`MAPPING SUCCESS: Key ${keyString} provisioned to ${request.userEmail}`);
@@ -154,12 +161,14 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
             </div>
 
             <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl animate-slide-in-bottom">
-            <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
-                <div className="col-span-2">User Intelligence</div>
-                <div>Plan & Transaction</div>
-                <div>Status</div>
-                <div className="text-right">Actions</div>
-            </div>
+                <div className="overflow-x-auto w-full custom-scrollbar">
+                    <div className="min-w-[800px]">
+                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                            <div className="col-span-2">User Intelligence</div>
+                            <div>Plan & Transaction</div>
+                            <div>Status</div>
+                            <div className="text-right">Actions</div>
+                        </div>
 
             <div className="p-4 space-y-3">
                 {filteredRequests.length === 0 ? (
@@ -189,7 +198,7 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                                         </div>
                                         <div className="text-[10px] text-white/30 font-medium">{request.userEmail}</div>
                                         <div className="flex items-center gap-2 mt-1 text-[8px] text-white/20 uppercase tracking-widest font-mono">
-                                            <Calendar size={10} /> {request.createdAt?.toDate ? request.createdAt.toDate().toLocaleString() : 'N/A'}
+                                            <Calendar size={10} /> {request.createdAt ? (request.createdAt.toDate ? request.createdAt.toDate().toLocaleString() : new Date(request.createdAt).toLocaleString()) : 'N/A'}
                                         </div>
                                     </div>
                                 </div>
@@ -253,8 +262,9 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                         );
                     })
                 )}
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
     );
 };
