@@ -87,6 +87,7 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
 
                 // 5. Mark Key as Used (if we picked it from pool)
                 if (!querySnapshot.empty) {
+                    const keyDoc = querySnapshot.docs[0];
                     const durationDays = keyDoc.data().durationDays || (requiredType === 'eternal' ? null : (request.planKey === 'monthly' ? 30 : 180));
                     const expiresAt = durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString() : null;
 
@@ -262,6 +263,7 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
                         );
                     })
                 )}
+                        </div>
                     </div>
                 </div>
             </div>

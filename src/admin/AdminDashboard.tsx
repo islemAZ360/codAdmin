@@ -186,7 +186,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Tactical Overview Stats */}
-                <div className="grid grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     {[
                         { label: 'Active Agents', value: users.filter(u => u.status === 'approved' && !u.isBanned).length, icon: UsersIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
                         { label: 'Signal Violations', value: reports.filter(r => r.status === 'pending').length, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10' },
@@ -243,7 +243,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-8 inline-flex backdrop-blur-xl">
+                <div className="flex p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl mb-8 inline-flex backdrop-blur-xl max-w-full overflow-x-auto custom-scrollbar">
                     {(['users', 'inventory', 'payments', 'chats', 'news', 'support', 'reports'] as AdminTab[]).map((tab) => (
                         <button
                             key={tab}
@@ -260,14 +260,16 @@ export const AdminDashboard: React.FC = () => {
 
                 {activeTab === 'users' && (
                     <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.03)] backdrop-blur-3xl animate-slide-in-bottom">
-                        <div className="grid grid-cols-4 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
-                            <div>Tactical Identity</div>
-                            <div>Deployment Date</div>
-                            <div>Authorization</div>
-                            <div className="text-right">Command</div>
-                        </div>
+                        <div className="overflow-x-auto w-full custom-scrollbar">
+                            <div className="min-w-[800px]">
+                                <div className="grid grid-cols-4 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                                    <div>Tactical Identity</div>
+                                    <div>Deployment Date</div>
+                                    <div>Authorization</div>
+                                    <div className="text-right">Command</div>
+                                </div>
 
-                        <div className="p-4 space-y-3 perspective-container">
+                                <div className="p-4 space-y-3 perspective-container">
                             {users.length === 0 ? (
                                 <div className="p-16 text-center text-white/20 font-black uppercase tracking-widest text-sm animate-pulse">No entities registered in the database.</div>
                             ) : (
@@ -500,6 +502,8 @@ export const AdminDashboard: React.FC = () => {
                                     );
                                 })
                             )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
