@@ -8,7 +8,7 @@ import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
 import { AdminKeys } from './AdminKeys';
 import { AdminPayments } from './AdminPayments';
-import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database, Copy, Check, Mail } from 'lucide-react';
 import { setDoc } from 'firebase/firestore';
 import { useAdminDialog } from './AdminDialogs';
 
@@ -96,7 +96,19 @@ export const AdminDashboard: React.FC = () => {
     }, []);
 
     const toggleExpand = (userId: string) => {
-        setExpandedUserId(prev => prev === userId ? null : userId);
+        setExpandedUserId(expandedUserId === userId ? null : userId);
+    };
+
+    const formatDate = (date: any) => {
+        if (!date) return 'N/A';
+        try {
+            if (date.toDate) return date.toDate().toLocaleString();
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return 'N/A';
+            return d.toLocaleString();
+        } catch (e) {
+            return 'N/A';
+        }
     };
 
     const handleApprove = async (userId: string) => {
@@ -169,11 +181,11 @@ export const AdminDashboard: React.FC = () => {
                     <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-12 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.8)]"></div>
                     <div>
                         <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-md">Admin <span className="text-emerald-400">Control Hub</span></h1>
-                        <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.4em] mt-1">Intelligence Access Management</p>
+                        <p className="text-xs text-white/40 font-black uppercase tracking-[0.4em] mt-1">Intelligence Access Management</p>
                     </div>
                     <div className="flex items-center gap-6">
                         <div className="text-right hidden md:block">
-                            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Active Session</p>
+                            <p className="text-xs font-black text-white/20 uppercase tracking-[0.2em]">Active Session</p>
                             <p className="text-xs font-bold text-emerald-500/80">{auth.currentUser?.email}</p>
                         </div>
                         <button
@@ -198,7 +210,7 @@ export const AdminDashboard: React.FC = () => {
                                 <stat.icon size={22} />
                             </div>
                             <div>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">{stat.label}</div>
+                                <div className="text-xs font-black uppercase tracking-widest text-white/20 mb-1">{stat.label}</div>
                                 <div className="text-xl font-black text-white leading-none">{stat.value}</div>
                             </div>
                         </div>
@@ -211,7 +223,7 @@ export const AdminDashboard: React.FC = () => {
                         <Megaphone size={24} className="group-hover:rotate-12 transition-transform" />
                     </div>
                     <div className="flex-1">
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/60 mb-2 flex items-center gap-2">
+                        <div className="text-xs font-black uppercase tracking-[0.3em] text-amber-500/60 mb-2 flex items-center gap-2">
                             <Radio size={10} className="animate-pulse" /> Global System Broadcast
                         </div>
                         <input
@@ -248,7 +260,7 @@ export const AdminDashboard: React.FC = () => {
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === tab
+                            className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === tab
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
                                 : 'text-white/40 hover:text-white/80'
                                 }`}
@@ -262,7 +274,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(16,185,129,0.03)] backdrop-blur-3xl animate-slide-in-bottom">
                         <div className="overflow-x-auto w-full custom-scrollbar">
                             <div className="min-w-[800px]">
-                                <div className="grid grid-cols-4 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                                <div className="grid grid-cols-4 gap-6 p-6 font-black text-xs uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
                                     <div>Tactical Identity</div>
                                     <div>Deployment Date</div>
                                     <div>Authorization</div>
@@ -271,7 +283,10 @@ export const AdminDashboard: React.FC = () => {
 
                                 <div className="p-4 space-y-3 perspective-container">
                             {users.length === 0 ? (
-                                <div className="p-16 text-center text-white/20 font-black uppercase tracking-widest text-sm animate-pulse">No entities registered in the database.</div>
+                                <div className="p-16 text-center text-white/20 font-black uppercase tracking-widest text-sm animate-pulse">
+                                    <UsersIcon size={48} className="opacity-20 animate-pulse text-emerald-500 mx-auto mb-4" />
+                                    No entities registered in the database.
+                                </div>
                             ) : (
                                 users.map(user => {
                                     const userLicense = licenseKeys.find(k => k.usedByUid === user.id || k.key === user.licenseKey);
@@ -294,14 +309,14 @@ export const AdminDashboard: React.FC = () => {
                                                         <div className="flex items-center gap-2">
                                                             <div className="font-black text-sm text-white/90 truncate">{user.name || 'Anonymous User'}</div>
                                                             {userLicense && (
-                                                                <span className={`px-2 py-0.5 rounded bg-black/40 text-[8px] font-black uppercase tracking-widest border border-white/10 ${userLicense.keyType === 'eternal' ? 'text-amber-500' : 'text-indigo-400'}`}>
+                                                                <span className={`px-2 py-0.5 rounded bg-black/40 text-xs font-black uppercase tracking-widest border border-white/10 ${userLicense.keyType === 'eternal' ? 'text-amber-500' : 'text-indigo-400'}`}>
                                                                     {userLicense.keyType}
                                                                 </span>
                                                             )}
                                                         </div>
-                                                            <div className="text-[10px] text-white/30 font-medium truncate tracking-tight flex items-center gap-2">
-                                                                {user.email}
-                                                                <button 
+                                                            <div className="text-xs text-white/30 font-medium truncate tracking-tight flex items-center gap-2">
+                                                            <Mail size={10} /> {user.email}
+                                                                <button
                                                                     onClick={(e) => { e.stopPropagation(); copyToClipboard(user.email, user.id + '-email'); }}
                                                                     className="hover:text-emerald-400 transition-colors"
                                                                 >
@@ -310,12 +325,12 @@ export const AdminDashboard: React.FC = () => {
                                                             </div>
                                                     </div>
                                                 </div>
-                                                <div className="text-xs text-white/50 font-mono">
-                                                    {new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
+                                                <div className="text-white/40 font-mono text-xs">
+                                                    {formatDate(user.createdAt)}
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-2">
-                                                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all duration-500 ${user.status === 'approved'
+                                                        <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border transition-all duration-500 ${user.status === 'approved'
                                                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                                                             : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.1)]'
                                                             }`}>

@@ -164,7 +164,7 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
             <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl animate-slide-in-bottom">
                 <div className="overflow-x-auto w-full custom-scrollbar">
                     <div className="min-w-[800px]">
-                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-xs uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
                             <div className="col-span-2">User Intelligence</div>
                             <div>Plan & Transaction</div>
                             <div>Status</div>
@@ -173,8 +173,11 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
 
             <div className="p-4 space-y-3">
                 {filteredRequests.length === 0 ? (
-                    <div className="p-16 text-center text-white/20 font-black uppercase tracking-widest text-sm italic">
-                        {searchTerm ? "No matching transmissions found." : "No financial transmissions detected."}
+                    <div className="p-24 text-center text-white/10 flex flex-col items-center justify-center gap-4">
+                        <CreditCard size={48} className="opacity-20 animate-pulse text-emerald-500" />
+                        <div className="font-black uppercase tracking-widest text-sm italic">
+                            {searchTerm ? "No matching transmissions found." : "No financial transmissions detected."}
+                        </div>
                     </div>
                 ) : (
                     filteredRequests.map((request) => {
@@ -206,17 +209,17 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
 
                                 {/* Plan & Transaction */}
                                 <div>
-                                    <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-wider mb-1">
+                                    <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-wider mb-1">
                                         <CreditCard size={12} /> {request.planKey}
                                     </div>
-                                    <div className="font-mono text-[10px] text-white/60 bg-white/5 px-2 py-1 rounded inline-flex items-center gap-2">
+                                    <div className="font-mono text-xs text-white/60 bg-white/5 px-2 py-1 rounded inline-flex items-center gap-2">
                                         <Hash size={10} /> {request.transactionId}
                                     </div>
                                 </div>
 
                                 {/* Status */}
                                 <div>
-                                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border flex items-center gap-2 w-fit ${
+                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border flex items-center gap-2 w-fit ${
                                         request.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
                                         request.status === 'rejected' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
                                         'bg-amber-500/10 border-amber-500/30 text-amber-400'

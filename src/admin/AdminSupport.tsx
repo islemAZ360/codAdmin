@@ -153,13 +153,13 @@ export const AdminSupport: React.FC = () => {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => handleReply(ticket.id)}
-                                                className="flex-1 bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest py-3 rounded-xl hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                                className="flex-1 bg-emerald-500 text-black text-xs font-black uppercase tracking-widest py-3 rounded-xl hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                                             >
                                                 Initialize Response
                                             </button>
                                             <button
                                                 onClick={() => setReplyingTo(null)}
-                                                className="px-6 bg-white/5 hover:bg-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest py-3 rounded-xl transition-all"
+                                                className="px-6 bg-white/5 hover:bg-white/10 text-white/40 text-xs font-black uppercase tracking-widest py-3 rounded-xl transition-all"
                                             >
                                                 Cancel
                                             </button>
@@ -170,7 +170,7 @@ export const AdminSupport: React.FC = () => {
                                         {ticket.status === 'open' && (
                                             <button
                                                 onClick={() => handleResolve(ticket.id)}
-                                                className="bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-400 hover:text-black hover:border-emerald-500 text-[10px] font-black uppercase tracking-widest px-6 py-2 h-auto transition-all duration-300 rounded-xl"
+                                                className="bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-400 hover:text-black hover:border-emerald-500 text-xs font-black uppercase tracking-widest px-6 py-2 h-auto transition-all duration-300 rounded-xl"
                                             >
                                                 <CheckCircle2 size={16} className="mr-2" /> Mark Resolved
                                             </button>
@@ -180,14 +180,14 @@ export const AdminSupport: React.FC = () => {
                                                 setReplyingTo(ticket.id);
                                                 setReplyText(ticket.adminResponse || '');
                                             }}
-                                            className="bg-transparent hover:bg-indigo-500/10 border border-white/10 hover:border-indigo-500/50 text-white/40 hover:text-indigo-400 text-[10px] font-black uppercase tracking-widest px-6 py-2 h-auto transition-all duration-300 rounded-xl"
+                                            className="bg-transparent hover:bg-indigo-500/10 border border-white/10 hover:border-indigo-500/50 text-white/40 hover:text-indigo-400 text-xs font-black uppercase tracking-widest px-6 py-2 h-auto transition-all duration-300 rounded-xl"
                                         >
                                             <Send size={16} className="mr-2" /> {ticket.adminResponse ? 'Edit Reply' : 'Transmit Reply'}
                                         </button>
                                         <div className="flex-1" />
                                         <button
                                             onClick={() => handleDelete(ticket.id)}
-                                            className="bg-transparent hover:bg-red-500/10 border border-transparent text-white/20 hover:text-red-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 h-auto transition-all duration-300 rounded-xl opacity-0 group-hover:opacity-100"
+                                            className="bg-transparent hover:bg-red-500/10 border border-transparent text-white/20 hover:text-red-500 text-xs font-black uppercase tracking-widest px-4 py-2 h-auto transition-all duration-300 rounded-xl opacity-0 group-hover:opacity-100"
                                         >
                                             <Trash2 size={16} />
                                         </button>

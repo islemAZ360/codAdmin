@@ -163,7 +163,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                         <button
                             key={type}
                             onClick={() => setFilterType(type)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterType === type
+                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${filterType === type
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'text-white/30 hover:text-white/60'
                                 }`}
@@ -184,7 +184,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
             <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl">
                 <div className="overflow-x-auto w-full custom-scrollbar">
                     <div className="min-w-[800px]">
-                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-xs uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
                             <div className="col-span-2">License Sequence</div>
                             <div>Configuration</div>
                             <div>Deployment Status</div>
@@ -193,7 +193,12 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
 
                 <div className="divide-y divide-white/5">
                     {filteredKeys.length === 0 ? (
-                        <div className="p-20 text-center text-white/10 font-black uppercase tracking-widest text-sm">No sequences found in this sector.</div>
+                        <div className="p-20 text-center text-white/10 flex flex-col items-center justify-center gap-4">
+                            <KeyRound size={48} className="opacity-20 animate-pulse text-emerald-500" />
+                            <div className="font-black uppercase tracking-widest text-sm italic">
+                                No sequences found in this sector.
+                            </div>
+                        </div>
                     ) : (
                         filteredKeys.map(k => (
                             <div key={k.id} className="grid grid-cols-5 gap-6 p-6 items-center hover:bg-white/[0.02] transition-colors group">
@@ -213,7 +218,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                                 </div>
 
                                 <div>
-                                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${k.keyType === 'eternal' ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
+                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border ${k.keyType === 'eternal' ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
                                         k.keyType === 'monthly' ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]' :
                                             'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
                                         }`}>

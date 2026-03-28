@@ -70,7 +70,7 @@ export const AdminReports: React.FC = () => {
     if (loading) return (
         <div className="flex flex-col items-center justify-center p-20 gap-4">
             <RefreshCw className="animate-spin text-red-500" size={32} />
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Scanning Data Streams...</p>
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-white/20">Scanning Data Streams...</p>
         </div>
     );
 
@@ -81,7 +81,7 @@ export const AdminReports: React.FC = () => {
                     <AlertTriangle className="text-red-500" />
                     USER REPORTS & VIOLATIONS
                 </h2>
-                <div className="text-[10px] uppercase font-black tracking-widest text-red-500/50">
+                <div className="text-xs uppercase font-black tracking-widest text-red-500/50">
                     {reports.filter(r => r.status === 'pending').length} Critical Alerts
                 </div>
             </div>
@@ -90,8 +90,11 @@ export const AdminReports: React.FC = () => {
                 <div className="min-w-[800px]">
                     <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 {reports.length === 0 ? (
-                    <div className="p-20 text-center text-white/10 font-black uppercase tracking-widest text-sm">
-                        Zero violations detected. Mesh is clean.
+                    <div className="p-24 text-center text-white/10 flex flex-col items-center justify-center gap-4">
+                        <AlertTriangle size={48} className="opacity-20 animate-pulse text-emerald-500" />
+                        <div className="font-black uppercase tracking-widest text-sm italic">
+                            Zero violations detected. Mesh is clean.
+                        </div>
                     </div>
                 ) : (
                     reports.map(report => (
@@ -113,12 +116,12 @@ export const AdminReports: React.FC = () => {
                                                 {report.type === 'message' ? `Message via ${report.targetNickname}` : `Room: ${report.targetName}`}
                                             </h4>
                                             {report.status === 'resolved' && (
-                                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-black uppercase tracking-widest flex items-center gap-1">
                                                     <CheckCircle size={10} /> Resolved
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">
+                                        <div className="text-xs text-white/30 font-bold uppercase tracking-widest mt-1">
                                             Reported by {report.reporterNickname} • {report.createdAt ? (report.createdAt.toDate ? format(report.createdAt.toDate(), 'HH:mm:ss MMM d') : format(new Date(report.createdAt), 'HH:mm:ss MMM d')) : 'Pending'}
                                         </div>
                                     </div>
@@ -156,17 +159,17 @@ export const AdminReports: React.FC = () => {
                             </div>
 
                             {report.status === 'pending' && (
-                                <div className="flex items-center gap-3">
+                                 <div className="flex items-center gap-3">
                                     <button
                                         onClick={() => handlePurgeTarget(report)}
-                                        className="flex-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-black border border-red-500/30 font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                                        className="flex-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-black border border-red-500/30 font-black text-xs uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2"
                                     >
                                         <Trash2 size={14} /> Purge Component
                                     </button>
                                     {report.targetUid && (
                                         <button
                                             onClick={() => handleBanUser(report.targetUid, report.id)}
-                                            className="flex-1 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-black border border-amber-500/30 font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                                            className="flex-1 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-black border border-amber-500/30 font-black text-xs uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2"
                                         >
                                             <ShieldAlert size={14} /> Ban Offender
                                         </button>

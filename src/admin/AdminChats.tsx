@@ -216,7 +216,7 @@ export const AdminChats: React.FC = () => {
                     >
                         <Zap size={14} /> Purge Mesh
                     </button>
-                    <div className="text-[10px] uppercase font-black tracking-widest text-emerald-400/50">
+                    <div className="text-xs uppercase font-black tracking-widest text-emerald-400/50">
                         {rooms.length} Active Channels
                     </div>
                 </div>
@@ -224,7 +224,7 @@ export const AdminChats: React.FC = () => {
 
             <div className="overflow-x-auto w-full custom-scrollbar">
                 <div className="min-w-[800px]">
-                    <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                    <div className="grid grid-cols-5 gap-6 p-6 font-black text-xs uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
                         <div className="col-span-2">Room Identification</div>
                         <div>Access Type</div>
                         <div className="text-center">Nodes</div>
@@ -233,7 +233,12 @@ export const AdminChats: React.FC = () => {
 
                     <div className="p-4 space-y-3 perspective-container max-h-[60vh] overflow-y-auto pr-2">
                 {rooms.length === 0 ? (
-                    <div className="p-16 text-center text-white/20 font-black uppercase tracking-widest text-sm animate-pulse">No active chat channels.</div>
+                    <div className="p-24 text-center text-white/10 flex flex-col items-center justify-center gap-4">
+                        <MessageSquare size={48} className="opacity-20 animate-pulse text-emerald-500" />
+                        <div className="font-black uppercase tracking-widest text-sm italic">
+                            No active chat channels. Mesh silent.
+                        </div>
+                    </div>
                 ) : (
                     rooms.map(room => (
                         <div key={room.id} className="hover-3d-card grid grid-cols-5 gap-6 p-5 items-center bg-black/40 hover:bg-emerald-900/10 border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all duration-500 group/row shadow-lg">
@@ -251,8 +256,8 @@ export const AdminChats: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all duration-500 ${room.isPrivate
+                             <div>
+                                <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border transition-all duration-500 ${room.isPrivate
                                     ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
                                     : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                                     }`}>

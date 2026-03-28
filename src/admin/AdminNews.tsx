@@ -230,13 +230,13 @@ export const AdminNews: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className={`text-xs font-black uppercase tracking-widest ${showPoll ? 'text-indigo-400' : 'text-white/40'}`}>Tactical Poll</h4>
-                                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">Gather intel from the field</p>
+                                    <p className="text-xs text-white/20 font-bold uppercase tracking-widest">Gather intel from the field</p>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowPoll(!showPoll)}
-                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${showPoll ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'}`}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${showPoll ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'}`}
                             >
                                 {showPoll ? 'Deactivate Poll' : 'Activate Poll'}
                             </button>
@@ -282,7 +282,7 @@ export const AdminNews: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => setPollOptions([...pollOptions, ''])}
-                                            className="w-full py-2 bg-indigo-500/10 border border-dashed border-indigo-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/20 transition-all"
+                                            className="w-full py-2 bg-indigo-500/10 border border-dashed border-indigo-500/20 rounded-xl text-xs font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/20 transition-all"
                                         >
                                             + Add Intelligence Option
                                         </button>
@@ -382,7 +382,7 @@ export const AdminNews: React.FC = () => {
                             </div>
                         )}
                         <h3 className="font-black text-white text-lg mb-1 uppercase tracking-tight group-hover:text-emerald-400 transition-colors">{item.title}</h3>
-                        <p className="text-[10px] font-black text-white/20 mb-3 uppercase tracking-widest flex items-center gap-2">
+                        <p className="text-xs font-black text-white/20 mb-3 uppercase tracking-widest flex items-center gap-2">
                             <Megaphone size={10} /> {item.createdAt ? (item.createdAt.toDate ? format(item.createdAt.toDate(), 'MMMM d, yyyy') : format(new Date(item.createdAt), 'MMMM d, yyyy')) : 'Loading...'}
                         </p>
                         <p className="text-sm text-white/60 leading-relaxed italic line-clamp-3">{item.content}</p>
