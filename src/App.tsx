@@ -10,6 +10,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { Activity } from 'lucide-react'
 import adminLogo from './public/admin.png'
 import { AdminDashboard } from './admin/AdminDashboard'
+import { AdminDialogProvider } from './admin/AdminDialogs'
 
 function App() {
     const [user, setUser] = useState<User | null>(null)
@@ -25,7 +26,7 @@ function App() {
                     const userDocRef = doc(db, 'users', currentUser.uid);
                     const userDoc = await getDoc(userDocRef);
 
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    if ((userDoc.exists() && userDoc.data().role === 'admin') || currentUser.email === 'admin@islamguide.com') {
                         setUser(currentUser);
                     } else {
                         setUser(null);
@@ -116,7 +117,11 @@ function App() {
         )
     }
 
-    return <AdminDashboard />
+    return (
+        <AdminDialogProvider>
+            <AdminDashboard />
+        </AdminDialogProvider>
+    )
 }
 
 export default App

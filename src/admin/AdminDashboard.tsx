@@ -10,6 +10,7 @@ import { AdminKeys } from './AdminKeys';
 import { AdminPayments } from './AdminPayments';
 import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Megaphone, Radio, Trash2, Users as UsersIcon, Database, Copy, Check } from 'lucide-react';
 import { setDoc } from 'firebase/firestore';
+import { useAdminDialog } from './AdminDialogs';
 
 type AdminTab = 'users' | 'inventory' | 'chats' | 'news' | 'support' | 'reports' | 'payments';
 
@@ -25,6 +26,7 @@ export const AdminDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [now, setNow] = useState(new Date());
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const { showConfirm, showToast, showAlert } = useAdminDialog();
 
     const copyToClipboard = (text: string, id: string) => {
         navigator.clipboard.writeText(text);
@@ -111,36 +113,45 @@ export const AdminDashboard: React.FC = () => {
                 globalAlert: alertText.trim(),
                 updatedAt: new Date().toISOString()
             }, { merge: true });
-            alert("Global broadcast updated.");
+            showToast("Global broadcast updated successfully.", "success");
         } catch (err) {
             console.error("Scale error:", err);
+            showToast("Failed to update broadcast.", "error");
         }
     };
 
     const handleDeleteUser = async (user: any) => {
-        if (!window.confirm(`ERASE PROTOCOL: Are you sure you want to permanently purge entity ${user.name || user.email}? This action will wipe all node records.`)) return;
+        const confirmed = await showConfirm(
+            "ERASE PROTOCOL",
+            `Are you sure you want to permanently purge entity ${user.name || user.email}? This action will wipe all node records.`
+        );
+        if (!confirmed) return;
 
         try {
             // 1. Find if user has a used license key
             const userLicense = licenseKeys.find(k => k.usedByUid === user.id || k.key === user.licenseKey);
 
             if (userLicense) {
-                // Unbind the key so it can be used again
+                // Unbind the key so it can be used again (fully reset)
                 await updateDoc(doc(db, 'license_keys', userLicense.id), {
                     usedByUid: null,
                     usedByEmail: null,
                     usedByName: null,
                     deviceId: null,
-                    isUsed: false
+                    isUsed: false,
+                    transfersUsed: 0,
+                    transferHistory: [],
+                    activatedAt: null,
+                    expiresAt: null
                 });
             }
 
             // 2. Delete user doc
             await deleteDoc(doc(db, 'users', user.id));
-            alert("Entity successfully purged from the matrix.");
-        } catch (err) {
+            showToast("Entity successfully purged from the matrix.", "success");
+        } catch (err: any) {
             console.error("Purge failure:", err);
-            alert("Registry error: Protocol could not be finalized.");
+            showAlert("Registry Error", `Protocol could not be finalized: ${err.message}`);
         }
     };
 

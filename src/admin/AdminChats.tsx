@@ -145,6 +145,10 @@ export const AdminChats: React.FC = () => {
     const handleDeleteRoom = async (roomId: string) => {
         if (!window.confirm("Are you SURE you want to delete this entire room? This action is irreversible.")) return;
         try {
+            const msgsSnap = await getDocs(collection(db, 'rooms', roomId, 'messages'));
+            for (const m of msgsSnap.docs) {
+                await deleteDoc(doc(db, 'rooms', roomId, 'messages', m.id));
+            }
             await deleteDoc(doc(db, 'rooms', roomId));
             if (selectedRoom?.id === roomId) setSelectedRoom(null);
         } catch (err) {
@@ -218,14 +222,16 @@ export const AdminChats: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
-                <div className="col-span-2">Room Identification</div>
-                <div>Access Type</div>
-                <div className="text-center">Nodes</div>
-                <div className="text-right">Command</div>
-            </div>
+            <div className="overflow-x-auto w-full custom-scrollbar">
+                <div className="min-w-[800px]">
+                    <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                        <div className="col-span-2">Room Identification</div>
+                        <div>Access Type</div>
+                        <div className="text-center">Nodes</div>
+                        <div className="text-right">Command</div>
+                    </div>
 
-            <div className="p-4 space-y-3 perspective-container max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="p-4 space-y-3 perspective-container max-h-[60vh] overflow-y-auto pr-2">
                 {rooms.length === 0 ? (
                     <div className="p-16 text-center text-white/20 font-black uppercase tracking-widest text-sm animate-pulse">No active chat channels.</div>
                 ) : (
@@ -286,6 +292,8 @@ export const AdminChats: React.FC = () => {
                         </div>
                     ))
                 )}
+                    </div>
+                </div>
             </div>
 
             {/* MODAL: Spectate Room */}

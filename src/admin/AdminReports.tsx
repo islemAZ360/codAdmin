@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { format } from 'date-fns';
 import { AlertTriangle, Trash2, ShieldAlert, CheckCircle, MessageSquare, Hash, RefreshCw } from 'lucide-react';
@@ -42,6 +42,10 @@ export const AdminReports: React.FC = () => {
             if (report.type === 'message') {
                 await deleteDoc(doc(db, 'rooms', report.roomId, 'messages', report.targetId));
             } else if (report.type === 'room') {
+                const msgsSnap = await getDocs(collection(db, 'rooms', report.targetId, 'messages'));
+                for (const m of msgsSnap.docs) {
+                    await deleteDoc(doc(db, 'rooms', report.targetId, 'messages', m.id));
+                }
                 await deleteDoc(doc(db, 'rooms', report.targetId));
             }
             await handleResolve(report.id);
@@ -82,7 +86,9 @@ export const AdminReports: React.FC = () => {
                 </div>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div className="overflow-x-auto w-full custom-scrollbar">
+                <div className="min-w-[800px]">
+                    <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 {reports.length === 0 ? (
                     <div className="p-20 text-center text-white/10 font-black uppercase tracking-widest text-sm">
                         Zero violations detected. Mesh is clean.
@@ -170,6 +176,8 @@ export const AdminReports: React.FC = () => {
                         </div>
                     ))
                 )}
+                    </div>
+                </div>
             </div>
         </div>
     );

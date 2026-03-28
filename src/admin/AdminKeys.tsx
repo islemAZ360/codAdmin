@@ -88,12 +88,16 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
         try {
             // 1. If key is used, unbind the user
             if (keyData.usedByUid) {
-                const userRef = doc(db, 'users', keyData.usedByUid);
-                await updateDoc(userRef, {
-                    status: 'pending',
-                    licenseKey: null,
-                    deviceId: null
-                });
+                try {
+                    const userRef = doc(db, 'users', keyData.usedByUid);
+                    await updateDoc(userRef, {
+                        status: 'pending',
+                        licenseKey: null,
+                        deviceId: null
+                    });
+                } catch (e) {
+                    console.log("Could not update user (may be deleted)", e);
+                }
             }
 
             // 2. Delete the key
@@ -178,12 +182,14 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
 
             {/* Keys Grid */}
             <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl">
-                <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
-                    <div className="col-span-2">License Sequence</div>
-                    <div>Configuration</div>
-                    <div>Deployment Status</div>
-                    <div className="text-right">Generation Date</div>
-                </div>
+                <div className="overflow-x-auto w-full custom-scrollbar">
+                    <div className="min-w-[800px]">
+                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-[10px] uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                            <div className="col-span-2">License Sequence</div>
+                            <div>Configuration</div>
+                            <div>Deployment Status</div>
+                            <div className="text-right">Generation Date</div>
+                        </div>
 
                 <div className="divide-y divide-white/5">
                     {filteredKeys.length === 0 ? (
@@ -281,6 +287,8 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                             </div>
                         ))
                     )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
