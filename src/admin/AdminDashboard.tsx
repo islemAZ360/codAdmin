@@ -8,7 +8,7 @@ import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
 import { AdminKeys } from './AdminKeys';
 import { AdminPayments } from './AdminPayments';
-import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Trash2, Users as UsersIcon, Database, Copy, Check, Mail, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Trash2, Users as UsersIcon, Database, Copy, Check, Mail, User, Radio } from 'lucide-react';
 import { useAdminDialog } from './AdminDialogs';
 
 type AdminTab = 'users' | 'inventory' | 'chats' | 'news' | 'support' | 'reports' | 'payments';
@@ -23,17 +23,30 @@ export const AdminDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [now, setNow] = useState(new Date());
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [isGhostMode, setIsGhostMode] = useState(false);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [activities, setActivities] = useState<any[]>([]);
     const { showConfirm, showToast, showAlert } = useAdminDialog();
 
-    const copyToClipboard = (text: string, id: string) => {
+    const copyToClipboard = (text: string, id: string, label: string = "Data") => {
+        if (!text) return;
         navigator.clipboard.writeText(text);
         setCopiedId(id);
+        showToast(`${label.toUpperCase()} INTEL COPIED`, "success");
         setTimeout(() => setCopiedId(null), 2000);
     };
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
-        return () => clearInterval(timer);
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
     }, []);
 
     useEffect(() => {
@@ -48,12 +61,19 @@ export const AdminDashboard: React.FC = () => {
                 const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
                 return dateB - dateA;
             });
+            if (users.length > 0 && usersList.length > users.length) {
+                const newUser = usersList.find(u => !users.some(ext => ext.id === u.id));
+                if (newUser) addActivity('user', `New entry detected: ${newUser.name || newUser.email}`);
+            }
             setUsers(usersList);
         });
 
         const unsubKeys = onSnapshot(collection(db, 'license_keys'), (snapshot) => {
             const keysList: any[] = [];
             snapshot.forEach(doc => keysList.push({ id: doc.id, ...doc.data() }));
+            if (licenseKeys.length > 0 && keysList.length > licenseKeys.length) {
+                addActivity('key', `New access sequence provisioned`);
+            }
             setLicenseKeys(keysList);
         });
 
@@ -159,6 +179,10 @@ export const AdminDashboard: React.FC = () => {
         }
     };
 
+    const addActivity = (type: string, message: string) => {
+        setActivities(prev => [{ id: Math.random(), type, message, timestamp: new Date() }, ...prev].slice(0, 5));
+    };
+
     return (
         <div className="bg-[#020503] min-h-screen text-white p-8 lg:p-12 font-sans relative overflow-hidden animate-reveal">
 
@@ -178,7 +202,21 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex items-center gap-6">
                         <div className="text-right hidden md:block">
                             <p className="text-xs font-black text-white/20 uppercase tracking-[0.2em]">Active Session</p>
-                            <p className="text-xs font-bold text-emerald-500/80">{auth.currentUser?.email}</p>
+                                <p className="text-xs font-bold text-emerald-500/80">{auth.currentUser?.email}</p>
+                        </div>
+                        <div className="flex items-center gap-3 bg-white/[0.03] p-1.5 rounded-2xl border border-white/5">
+                            <button
+                                onClick={() => setIsGhostMode(!isGhostMode)}
+                                className={`p-2 rounded-xl transition-all ${isGhostMode ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-white/20 hover:text-white/60'}`}
+                                title={isGhostMode ? "Deactivate Ghost Mode" : "Activate Ghost Mode (Privacy Blur)"}
+                            >
+                                <ShieldAlert size={18} />
+                            </button>
+                            <div className="w-px h-4 bg-white/10"></div>
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${isOnline ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                                <Radio size={12} className={isOnline ? 'animate-pulse' : ''} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{isOnline ? 'Link Stable' : 'Link Offline'}</span>
+                            </div>
                         </div>
                         <button
                             onClick={logout}
@@ -189,25 +227,57 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Tactical Overview Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    {[
-                        { label: 'Active Agents', value: users.filter(u => u.status === 'approved' && !u.isBanned).length, icon: UsersIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                        { label: 'Signal Violations', value: reports.filter(r => r.status === 'pending').length, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10' },
-                        { label: 'Deployed Keys', value: licenseKeys.length, icon: KeyRound, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                        { label: 'Mesh Stability', value: '98.4%', icon: Database, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                    ].map((stat, i) => (
-                        <div key={i} className="holographic-island p-5 rounded-3xl border border-white/5 bg-white/[0.02] flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center border border-white/5`}>
-                                <stat.icon size={22} />
+                {/* Tactical Overview Stats & Activity Feed */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[
+                            { label: 'Active Agents', value: users.filter(u => u.status === 'approved' && !u.isBanned).length, icon: UsersIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                            { label: 'Signal Violations', value: reports.filter(r => r.status === 'pending').length, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10' },
+                            { label: 'Deployed Keys', value: licenseKeys.length, icon: KeyRound, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+                            { label: 'Mesh Stability', value: '98.4%', icon: Database, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                        ].map((stat, i) => (
+                            <div key={i} className="holographic-island p-5 rounded-3xl border border-white/5 bg-white/[0.02] flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center border border-white/5`}>
+                                    <stat.icon size={22} />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-black uppercase tracking-widest text-white/20 mb-1">{stat.label}</div>
+                                    <div className="text-xl font-black text-white leading-none">{stat.value}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div className="text-xs font-black uppercase tracking-widest text-white/20 mb-1">{stat.label}</div>
-                                <div className="text-xl font-black text-white leading-none">{stat.value}</div>
-                            </div>
+                        ))}
+                    </div>
+
+                    {/* Active Intel Feed (Real-time Activity) */}
+                    <div className="holographic-island p-5 rounded-3xl border border-white/5 bg-white/[0.02] overflow-hidden">
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-4 flex items-center gap-2">
+                            <Radio size={10} className="animate-pulse text-emerald-500" /> Active Intel Stream
                         </div>
-                    ))}
+                        <div className="space-y-3">
+                            {activities.length === 0 ? (
+                                <div className="text-[9px] text-white/10 italic text-center py-4">Waiting for mission data...</div>
+                            ) : (
+                                activities.map(act => (
+                                    <div key={act.id} className="flex items-center gap-3 animate-in slide-in-from-right-2 duration-500">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${act.type === 'user' ? 'bg-emerald-500' : 'bg-indigo-500'} shadow-[0_0_5px_currentColor]`}></div>
+                                        <div className="flex-1 overflow-hidden">
+                                            <div className="text-[10px] text-white/60 truncate font-medium">{act.message}</div>
+                                            <div className="text-[8px] text-white/20 uppercase font-mono">{formatDate(act.timestamp)}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
+
+                <style>{`
+                    .ghost-blur {
+                        filter: ${isGhostMode ? 'blur(5px)' : 'none'};
+                        pointer-events: ${isGhostMode ? 'none' : 'auto'};
+                        transition: filter 0.3s ease;
+                    }
+                `}</style>
 
 
 
@@ -272,14 +342,13 @@ export const AdminDashboard: React.FC = () => {
                                                                 {getUserRank(user, userLicense).label}
                                                             </span>
                                                         </div>
-                                                        <div className="text-xs text-white/30 font-medium truncate tracking-tight flex items-center gap-2 mt-0.5">
+                                                        <div className="text-xs text-white/30 font-medium truncate tracking-tight flex items-center gap-2 mt-0.5 ghost-blur cursor-pointer hover:text-white transition-colors"
+                                                             onClick={(e) => { e.stopPropagation(); copyToClipboard(user.email, user.id + '-email', 'Email'); }}
+                                                        >
                                                             <Mail size={10} /> {user.email}
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); copyToClipboard(user.email, user.id + '-email'); }}
-                                                                className="hover:text-emerald-400 transition-colors"
-                                                            >
-                                                                {copiedId === user.id + '-email' ? <Check size={10} /> : <Copy size={10} />}
-                                                            </button>
+                                                            <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                {copiedId === user.id + '-email' ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -375,14 +444,14 @@ export const AdminDashboard: React.FC = () => {
                                                             <div className="flex items-center justify-between">
                                                                 <div>
                                                                     <div className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Assigned Key</div>
-                                                                    <div className="font-mono text-emerald-400 text-xs bg-emerald-900/10 p-2 rounded-lg border border-emerald-500/20 flex items-center justify-between group/key">
+                                                                    <div 
+                                                                        className="font-mono text-emerald-400 text-xs bg-emerald-900/10 p-2 rounded-lg border border-emerald-500/20 flex items-center justify-between group/key ghost-blur cursor-copy hover:bg-emerald-500/10 transition-all"
+                                                                        onClick={() => copyToClipboard(user.licenseKey || userLicense?.key || '', user.id + '-key-internal', 'Sequence')}
+                                                                    >
                                                                         <span>{user.licenseKey || userLicense?.key || 'None Assigned'}</span>
-                                                                        <button 
-                                                                            onClick={() => copyToClipboard(user.licenseKey || userLicense?.key || '', user.id + '-key-internal')}
-                                                                            className="opacity-0 group-hover/key:opacity-100 transition-opacity p-1 hover:text-white"
-                                                                        >
+                                                                        <div className="opacity-0 group-hover/key:opacity-100 transition-opacity p-1">
                                                                             {copiedId === user.id + '-key-internal' ? <Check size={10} /> : <Copy size={10} />}
-                                                                        </button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                                 {userLicense && (

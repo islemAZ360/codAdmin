@@ -145,19 +145,75 @@ export const AdminPayments: React.FC<AdminPaymentsProps> = ({ requests, users })
         (r.userName && r.userName.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    const totalRevenue = requests
+        .filter(r => r.status === 'approved')
+        .reduce((sum, r) => {
+            const prices: any = { 'monthly': 15, 'sixMonths': 60, 'lifetime': 150 };
+            return sum + (prices[r.planKey] || 0);
+        }, 0);
+
+    const exportPaymentsToCSV = () => {
+        const headers = ["User", "Email", "Plan", "Transaction ID", "Status", "Date"];
+        const rows = filteredRequests.map(r => [
+            r.userName || 'N/A',
+            r.userEmail,
+            r.planKey,
+            r.transactionId,
+            r.status,
+            r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate().toLocaleString() : new Date(r.createdAt).toLocaleString()) : 'N/A'
+        ]);
+        
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `payments_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="holographic-island p-4 rounded-2xl border border-white/10 bg-white/[0.02]">
-                <div className="relative">
-                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search by Email or Transaction ID..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-xl py-2.5 pl-12 pr-4 text-sm focus:border-emerald-500/30 outline-none transition-all placeholder:text-white/10"
-                    />
+            {/* Header with Stats & Search */}
+            <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                <div className="holographic-island p-6 rounded-3xl border border-white/10 bg-white/[0.02] flex-1 flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                            <CreditCard size={28} />
+                        </div>
+                        <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-1">Total Authorized Volume</div>
+                            <div className="text-3xl font-black text-white flex items-baseline gap-1">
+                                <span className="text-emerald-500 text-lg">$</span>{totalRevenue.toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-1">Approved Transmissions</div>
+                        <div className="text-xl font-black text-white/80">{requests.filter(r => r.status === 'approved').length} Units</div>
+                    </div>
+                </div>
+
+                <div className="holographic-island p-4 rounded-3xl border border-white/10 bg-white/[0.02] flex flex-col justify-center gap-3 min-w-[300px]">
+                    <div className="relative">
+                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search Filter..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-black/40 border border-white/5 rounded-xl py-2.5 pl-12 pr-4 text-xs focus:border-emerald-500/30 outline-none transition-all placeholder:text-white/10"
+                        />
+                    </div>
+                    <button 
+                        onClick={exportPaymentsToCSV}
+                        className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all"
+                    >
+                        Export Logistics Record
+                    </button>
                 </div>
             </div>
 

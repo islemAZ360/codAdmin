@@ -21,6 +21,8 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
     const [editingKey, setEditingKey] = useState<any>(null);
     const [editData, setEditData] = useState<any>({});
     const [now, setNow] = useState(new Date());
+    const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -32,14 +34,11 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
         try {
             for (let i = 0; i < genCount; i++) {
                 const key = Math.random().toString(36).substring(2, 12).toUpperCase();
-                // Temporary keys no longer have an expiresAt until activated
-                const expiresAt = genType === 'eternal' ? null : null;
-
                 await setDoc(doc(db, 'license_keys', key), {
                     key,
                     keyType: genType,
                     durationDays: genType === 'eternal' ? null : (genType === 'monthly' ? 30 : genDays),
-                    expiresAt,
+                    expiresAt: null,
                     createdAt: new Date().toISOString(),
                     usedByUid: null,
                     transfersUsed: 0,
@@ -86,39 +85,81 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
         if (!window.confirm(`ERASE PROTOCOL: Are you sure you want to permanently delete sequence ${keyData.key}? This will deauthorize any linked node.`)) return;
 
         try {
-            // 1. If key is used, unbind the user
             if (keyData.usedByUid) {
                 try {
-                    const userRef = doc(db, 'users', keyData.usedByUid);
-                    await updateDoc(userRef, {
+                    await updateDoc(doc(db, 'users', keyData.usedByUid), {
                         status: 'pending',
                         licenseKey: null,
                         deviceId: null
                     });
-                } catch (e) {
-                    console.log("Could not update user (may be deleted)", e);
-                }
+                } catch (e) {}
             }
-
-            // 2. Delete the key
             await deleteDoc(doc(db, 'license_keys', keyData.id));
             alert("Sequence successfully purged from the registry.");
         } catch (err) {
             console.error("Purge failure:", err);
-            alert("Registry error: Protocol could not be finalized.");
         }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!window.confirm(`MASS PURGE PROTOCOL: Are you sure you want to permanently delete ${selectedKeys.length} sequences?`)) return;
+        setIsBulkDeleting(true);
+        try {
+            for (const keyId of selectedKeys) {
+                const keyData = keys.find(k => k.id === keyId);
+                if (keyData) {
+                    if (keyData.usedByUid) {
+                        try {
+                            await updateDoc(doc(db, 'users', keyData.usedByUid), {
+                                status: 'pending',
+                                licenseKey: null,
+                                deviceId: null
+                            });
+                        } catch (e) {}
+                    }
+                    await deleteDoc(doc(db, 'license_keys', keyId));
+                }
+            }
+            setSelectedKeys([]);
+            alert("Mass purge complete.");
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
+    const exportToCSV = () => {
+        const headers = ["Key", "Type", "Status", "User", "Expires At", "Created At"];
+        const rows = filteredKeys.map(k => [
+            k.key,
+            k.keyType,
+            k.usedByUid ? 'Used' : 'Dormant',
+            k.usedByEmail || 'N/A',
+            k.expiresAt ? new Date(k.expiresAt).toLocaleString() : 'N/A',
+            new Date(k.createdAt).toLocaleString()
+        ]);
+        
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `keys_export_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const getCountdown = (expiresAt: string) => {
         const end = new Date(expiresAt).getTime();
         const diff = end - now.getTime();
         if (diff <= 0) return 'TERMINATED';
-
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
         return `${days}d ${hours}h ${mins}m ${secs}s`;
     };
 
@@ -172,19 +213,47 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                         </button>
                     ))}
                 </div>
-                <button
-                    onClick={() => setShowGenModal(true)}
-                    className="bg-emerald-500 text-black px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center gap-2"
-                >
-                    <Plus size={18} /> Initialize Keys
-                </button>
+                <div className="flex items-center gap-2">
+                    {selectedKeys.length > 0 && (
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting}
+                            className="bg-red-500/10 text-red-500 border border-red-500/30 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                        >
+                            {isBulkDeleting ? 'Purging...' : `Purge (${selectedKeys.length})`}
+                        </button>
+                    )}
+                    <button
+                        onClick={exportToCSV}
+                        className="bg-white/5 text-white/40 border border-white/10 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+                    >
+                        Export CSV
+                    </button>
+                    <button
+                        onClick={() => setShowGenModal(true)}
+                        className="bg-emerald-500 text-black px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center gap-2"
+                    >
+                        <Plus size={18} /> Initialize Keys
+                    </button>
+                </div>
             </div>
 
             {/* Keys Grid */}
             <div className="holographic-island rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl">
                 <div className="overflow-x-auto w-full custom-scrollbar">
                     <div className="min-w-[800px]">
-                        <div className="grid grid-cols-5 gap-6 p-6 font-black text-xs uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                        <div className="grid grid-cols-6 gap-6 p-6 font-black text-xs uppercase tracking-[0.3em] border-b border-white/5 text-white/40 bg-white/[0.02]">
+                            <div className="flex items-center gap-4">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedKeys.length === filteredKeys.length && filteredKeys.length > 0}
+                                    onChange={(e) => {
+                                        if (e.target.checked) setSelectedKeys(filteredKeys.map(k => k.id));
+                                        else setSelectedKeys([]);
+                                    }}
+                                    className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-emerald-500"
+                                />
+                            </div>
                             <div className="col-span-2">License Sequence</div>
                             <div>Configuration</div>
                             <div>Deployment Status</div>
@@ -200,8 +269,22 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                             </div>
                         </div>
                     ) : (
-                        filteredKeys.map(k => (
-                            <div key={k.id} className="grid grid-cols-5 gap-6 p-6 items-center hover:bg-white/[0.02] transition-colors group">
+                        filteredKeys.map(k => {
+                            const isExpiringSoon = k.expiresAt && (new Date(k.expiresAt).getTime() - now.getTime()) < 24 * 60 * 60 * 1000;
+                            
+                            return (
+                            <div key={k.id} className={`grid grid-cols-6 gap-6 p-6 items-center hover:bg-white/[0.02] transition-colors group ${isExpiringSoon ? 'bg-red-500/[0.02] border-l-2 border-red-500/30' : ''}`}>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedKeys.includes(k.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) setSelectedKeys([...selectedKeys, k.id]);
+                                            else setSelectedKeys(selectedKeys.filter(id => id !== k.id));
+                                        }}
+                                        className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-emerald-500"
+                                    />
+                                </div>
                                 <div className="col-span-2 flex items-center gap-4">
                                     <div className={`p-3 rounded-2xl border ${k.keyType === 'eternal' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
                                         k.keyType === 'monthly' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500' :
@@ -290,7 +373,8 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                                     </button>
                                 </div>
                             </div>
-                        ))
+                            );
+                        })
                     )}
                         </div>
                     </div>
