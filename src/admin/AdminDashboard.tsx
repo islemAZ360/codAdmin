@@ -8,7 +8,7 @@ import { AdminNews } from './AdminNews';
 import { AdminSupport } from './AdminSupport';
 import { AdminKeys } from './AdminKeys';
 import { AdminPayments } from './AdminPayments';
-import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, Cpu, Zap, Infinity, Clock, AlertTriangle, Calendar, Trash2, Users as UsersIcon, Database, Copy, Check, Mail, User, Radio } from 'lucide-react';
+import { ChevronDown, ChevronRight, KeyRound, ShieldAlert, ShieldCheck, Cpu, Zap, Infinity, AlertTriangle, Trash2, Users as UsersIcon, Database, Copy, Check, Mail, User, Radio } from 'lucide-react';
 import { useAdminDialog } from './AdminDialogs';
 
 type AdminTab = 'users' | 'inventory' | 'chats' | 'news' | 'support' | 'reports' | 'payments';
@@ -431,113 +431,166 @@ export const AdminDashboard: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Expandable Intel Section */}
+                                            {/* Expandable Intel Section - Tactical Overwatch Panel */}
                                             {isExpanded && (
-                                                <div className="p-6 bg-white/[0.01] grid grid-cols-2 gap-8 text-sm">
+                                                <div className="p-8 bg-black/60 grid grid-cols-1 lg:grid-cols-2 gap-10 text-sm border-t border-white/5 animate-in slide-in-from-top-4 duration-500 relative">
+                                                    {/* Decorative Scan Lines & Dots */}
+                                                    <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
+                                                    <div className="absolute top-2 left-2 flex gap-1"><div className="w-1 h-1 bg-emerald-500/40 rounded-full"></div><div className="w-1 h-1 bg-emerald-500/20 rounded-full"></div></div>
 
-                                                    {/* License Details */}
-                                                    <div className="space-y-4">
-                                                        <h3 className="text-xs font-black text-emerald-500/50 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <KeyRound size={12} /> Key Information
-                                                        </h3>
-                                                        <div className="bg-black/50 border border-white/5 rounded-xl p-4 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <div className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Assigned Key</div>
-                                                                    <div 
-                                                                        className="font-mono text-emerald-400 text-xs bg-emerald-900/10 p-2 rounded-lg border border-emerald-500/20 flex items-center justify-between group/key ghost-blur cursor-copy hover:bg-emerald-500/10 transition-all"
-                                                                        onClick={() => copyToClipboard(user.licenseKey || userLicense?.key || '', user.id + '-key-internal', 'Sequence')}
-                                                                    >
-                                                                        <span>{user.licenseKey || userLicense?.key || 'None Assigned'}</span>
-                                                                        <div className="opacity-0 group-hover/key:opacity-100 transition-opacity p-1">
-                                                                            {copiedId === user.id + '-key-internal' ? <Check size={10} /> : <Copy size={10} />}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                {userLicense && (
-                                                                    <div className={`p-2 rounded-xl border ${userLicense.keyType === 'eternal' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                                                                        userLicense.keyType === 'monthly' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' :
-                                                                            'bg-white/5 border-white/10 text-white/20'
-                                                                        }`}>
-                                                                        {userLicense.keyType === 'eternal' ? <Infinity size={20} /> :
-                                                                            userLicense.keyType === 'monthly' ? <Clock size={20} /> :
-                                                                                <Zap size={20} />}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Current Node (Device ID)</div>
-                                                                <div className="font-mono text-white/60 text-xs break-all bg-black/30 p-2 rounded-lg border border-white/5">
-                                                                    {user.deviceId || userLicense?.deviceId || 'No device linked'}
-                                                                </div>
-                                                            </div>
-                                                            {userLicense?.expiresAt && (
-                                                                <div>
-                                                                    <div className="text-[9px] text-white/30 uppercase tracking-widest mb-1 flex items-center gap-2">
-                                                                        <Calendar size={10} /> Sequence Expiration
-                                                                    </div>
-                                                                    <div className={`text-xs font-black uppercase tracking-tight ${new Date(userLicense.expiresAt).getTime() < Date.now() ? 'text-red-500' : 'text-white/60'}`}>
-                                                                        {new Date(userLicense.expiresAt).toLocaleString()}
-                                                                        {new Date(userLicense.expiresAt).getTime() < Date.now() && ' (TERMINATED)'}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
+                                                    {/* LEFT COLUMN: PRIMARY AUTHORIZATION INTEL */}
+                                                    <div className="space-y-6 relative">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h3 className="text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.4em] flex items-center gap-2">
+                                                                <div className="w-1.5 h-3 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                                                [ AUTHORIZATION_PARAMETERS ]
+                                                            </h3>
                                                         </div>
+
+                                                        {/* Assigned Key Terminal */}
+                                                        <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 group/keycard relative overflow-hidden">
+                                                            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/keycard:opacity-20 transition-opacity">
+                                                                <KeyRound size={40} />
+                                                            </div>
+                                                            <div className="text-[9px] text-white/20 uppercase tracking-[0.2em] font-black mb-2 italic">Access Sequence</div>
+                                                            <div 
+                                                                className="font-mono text-emerald-400 text-lg font-black tracking-widest bg-black/60 p-3 rounded-xl border border-emerald-500/20 flex items-center justify-between group/key ghost-blur cursor-copy hover:shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all"
+                                                                onClick={() => copyToClipboard(user.licenseKey || userLicense?.key || '', user.id + '-key-internal', 'Sequence')}
+                                                            >
+                                                                <span>{user.licenseKey || userLicense?.key || 'VOID'}</span>
+                                                                <div className="p-1 px-3 bg-emerald-500/20 rounded-lg text-emerald-400 uppercase text-[9px] font-black flex items-center gap-2 translate-x-4 opacity-0 group-hover/key:translate-x-0 group-hover/key:opacity-100 transition-all">
+                                                                    {copiedId === user.id + '-key-internal' ? <Check size={10} /> : <div className="flex items-center gap-1"><Copy size={10} /> SYNC</div>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Hardware Footprint (Device ID) */}
+                                                        <div className="space-y-3">
+                                                            <div className="text-[9px] text-white/20 uppercase tracking-[0.2em] font-black flex items-center gap-2 ml-1">
+                                                                <Cpu size={10} className="text-white/40" /> Node Hardware Fingerprint
+                                                            </div>
+                                                            <div className="font-mono text-white/60 text-[11px] leading-relaxed break-all bg-black/80 p-4 rounded-xl border border-white/5 relative group/device cursor-pointer hover:border-white/10 transition-all"
+                                                                 onClick={() => copyToClipboard(user.deviceId || userLicense?.deviceId || '', user.id + '-device', 'Hardware ID')}
+                                                            >
+                                                                {user.deviceId || userLicense?.deviceId || 'UNREGISTERED_NODE_ID'}
+                                                                <div className="absolute top-2 right-2 opacity-0 group-hover/device:opacity-100 transition-opacity text-emerald-500"><Copy size={12} /></div>
+                                                                <div className="mt-2 flex gap-1">
+                                                                    {Array.from({length: 8}).map((_, i) => (
+                                                                        <div key={i} className={`h-0.5 w-3 rounded-full ${user.deviceId ? 'bg-emerald-500/40' : 'bg-white/10 animate-pulse delay-' + (i*100)}`}></div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Visual Expiry Progress Radar */}
+                                                        {userLicense?.expiresAt && (
+                                                            <div className="pt-2">
+                                                                <div className="flex justify-between items-end mb-2">
+                                                                    <div className="text-[9px] text-white/20 uppercase tracking-[0.2em] font-black">Mission Duration Status</div>
+                                                                    <div className={`text-xs font-black uppercase font-mono ${new Date(userLicense.expiresAt).getTime() < Date.now() ? 'text-red-500' : 'text-emerald-500/80'}`}>
+                                                                        {(() => {
+                                                                            const diff = new Date(userLicense.expiresAt).getTime() - now.getTime();
+                                                                            if (diff <= 0) return 'DEPLETED';
+                                                                            const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                                                            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                                                            return `${d}D ${h}H REMAINING`;
+                                                                        })()}
+                                                                    </div>
+                                                                </div>
+                                                                {/* Progress Bar Container */}
+                                                                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                                                    {(() => {
+                                                                        const start = userLicense.createdAt ? new Date(userLicense.createdAt).getTime() : Date.now();
+                                                                        const end = new Date(userLicense.expiresAt).getTime();
+                                                                        const current = Date.now();
+                                                                        const total = end - start;
+                                                                        const elapsed = current - start;
+                                                                        const percent = Math.max(0, Math.min(100, (elapsed / total) * 100));
+                                                                        const remaining = 100 - percent;
+                                                                        
+                                                                        return (
+                                                                            <div 
+                                                                                className={`h-full transition-all duration-1000 ${remaining < 10 ? 'bg-red-500 animate-pulse' : remaining < 30 ? 'bg-amber-500' : 'bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]'}`}
+                                                                                style={{ width: `${remaining}%` }}
+                                                                            ></div>
+                                                                        );
+                                                                    })()}
+                                                                </div>
+                                                                <div className="flex justify-between mt-2 font-mono text-[8px] uppercase tracking-tighter text-white/10">
+                                                                    <span>Initialization Date: {formatDate(userLicense.createdAt)}</span>
+                                                                    <span>Termination Date: {formatDate(userLicense.expiresAt)}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    {/* Transfer & Violation History */}
-                                                    <div className="space-y-4">
-                                                        <h3 className="text-xs font-black text-orange-500/50 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <Cpu size={12} /> Hardware Transfers & Alerts
+                                                    {/* RIGHT COLUMN: TELEMETRY STREAM & SECURITY LOGS */}
+                                                    <div className="space-y-6">
+                                                        <h3 className="text-[10px] font-black text-orange-500/40 uppercase tracking-[0.4em] flex items-center gap-2 mb-2">
+                                                            <div className="w-1.5 h-3 bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
+                                                            [ TELEMETRY_STREAM ]
                                                         </h3>
-                                                        <div className="bg-black/50 border border-white/5 rounded-xl p-0 overflow-hidden divide-y divide-white/5">
 
-                                                            {/* Render Transfer History */}
-                                                            {userLicense?.transferHistory && userLicense.transferHistory.length > 0 ? (
-                                                                userLicense.transferHistory.map((transfer: any, idx: number) => (
-                                                                    <div key={`transfer-${idx}`} className="p-3 bg-white/[0.02] flex items-start gap-3">
-                                                                        <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 shrink-0 mt-0.5"><Cpu size={12} /></div>
-                                                                        <div>
-                                                                            <div className="text-xs font-medium text-white/80">Device Transferred</div>
-                                                                            <div className="text-[10px] text-white/40 font-mono mt-1 break-all">
-                                                                                From: {transfer.from}<br />
-                                                                                To: {transfer.to}
-                                                                            </div>
-                                                                            <div className="text-[9px] text-white/30 uppercase tracking-widest mt-2">
-                                                                                {new Date(transfer.date).toLocaleString()}
-                                                                            </div>
-                                                                        </div>
+                                                        <div className="holographic-island bg-black/40 border border-white/5 rounded-2xl overflow-hidden shadow-inner relative max-h-[350px] custom-scrollbar overflow-y-auto">
+                                                            <div className="absolute inset-0 bg-white/[0.01] pointer-events-none"></div>
+                                                            
+                                                            {/* Render Combined Telemetry History */}
+                                                            {(!userLicense?.transferHistory?.length && !userLicense?.violationAttempts?.length) ? (
+                                                                <div className="p-10 text-center flex flex-col items-center gap-3">
+                                                                    <div className="w-16 h-16 bg-emerald-500/5 rounded-full flex items-center justify-center border border-emerald-500/10 italic text-emerald-500/20">
+                                                                        <ShieldCheck size={32} />
                                                                     </div>
-                                                                ))
+                                                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/10 underline-offset-8 underline decoration-emerald-500/20">Mission Clear: Scan Result Negative</div>
+                                                                </div>
                                                             ) : (
-                                                                <div className="p-4 text-xs text-white/30 italic text-center">No transfers recorded</div>
-                                                            )}
-
-                                                            {/* Render Violation Logs */}
-                                                            {userLicense?.violationAttempts && userLicense.violationAttempts.length > 0 && (
-                                                                userLicense.violationAttempts.map((violation: any, idx: number) => (
-                                                                    <div key={`violation-${idx}`} className="p-3 bg-red-950/20 flex items-start gap-3 border-l-2 border-red-500/50">
-                                                                        <div className="p-1.5 bg-red-500/10 rounded-lg text-red-500 shrink-0 mt-0.5"><ShieldAlert size={12} /></div>
-                                                                        <div>
-                                                                            <div className="text-xs font-black text-red-400">Security Violation Blocked</div>
-                                                                            <div className="text-[10px] text-white/60 mt-1">
-                                                                                Attempted access from unauthorized hardware footprint.
+                                                                <div className="divide-y divide-white/5">
+                                                                    {/* Transfers Section */}
+                                                                    {userLicense?.transferHistory?.map((transfer: any, idx: number) => (
+                                                                        <div key={`transfer-${idx}`} className="p-4 bg-white/[0.01] hover:bg-emerald-500/[0.03] transition-colors flex items-start gap-4 group/item">
+                                                                            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20 shadow-lg">
+                                                                                <Radio size={14} className="animate-pulse" />
                                                                             </div>
-                                                                            <div className="text-[10px] text-red-400/50 font-mono mt-1 break-all">
-                                                                                ID: {violation.deviceId}
-                                                                            </div>
-                                                                            <div className="text-[9px] text-red-500/40 uppercase tracking-widest mt-2 flex justify-between items-center">
-                                                                                <span>{new Date(violation.timestamp).toLocaleString()}</span>
-                                                                                <span className="flex items-center gap-1 text-red-500/60"><AlertTriangle size={10} /> {violation.reason || 'Blocked'}</span>
+                                                                            <div className="flex-1 space-y-2">
+                                                                                <div className="flex justify-between items-center">
+                                                                                    <div className="text-[11px] font-black text-white/80 uppercase tracking-widest">Hardware Migration Logged</div>
+                                                                                    <div className="text-[8px] font-mono text-white/20 uppercase">{new Date(transfer.date).toLocaleString()}</div>
+                                                                                </div>
+                                                                                <div className="bg-black/40 rounded-lg p-2.5 border border-white/5 text-[9px] font-mono leading-relaxed">
+                                                                                    <div className="flex gap-2"><span className="text-white/20">SOURCE:</span> <span className="text-white/60 truncate">{transfer.from}</span></div>
+                                                                                    <div className="flex gap-2 mt-1"><span className="text-emerald-500/40">TARGET:</span> <span className="text-white/60 truncate">{transfer.to}</span></div>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                ))
+                                                                    ))}
+
+                                                                    {/* Violations Section */}
+                                                                    {userLicense?.violationAttempts?.map((violation: any, idx: number) => (
+                                                                        <div key={`violation-${idx}`} className="p-4 bg-red-950/20 hover:bg-red-900/30 transition-colors flex items-start gap-4 border-l-2 border-red-500 animate-pulse-slow">
+                                                                            <div className="w-8 h-8 rounded-xl bg-red-500/20 text-red-500 flex items-center justify-center shrink-0 border border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                                                                                <AlertTriangle size={14} />
+                                                                            </div>
+                                                                            <div className="flex-1 space-y-2">
+                                                                                 <div className="flex justify-between items-center">
+                                                                                    <div className="text-[11px] font-black text-red-400 uppercase tracking-widest italic">Unauthorized Node Intercepted</div>
+                                                                                    <div className="text-[8px] font-mono text-white/20 uppercase">{new Date(violation.timestamp).toLocaleString()}</div>
+                                                                                </div>
+                                                                                <div className="bg-black/60 rounded-lg p-2.5 border border-red-500/10 text-[9px] font-mono leading-relaxed text-red-400/80">
+                                                                                    ATTEMPTED_FINGERPRINT: {violation.deviceId.slice(0, 32)}...
+                                                                                </div>
+                                                                                <div className="text-[8px] font-black uppercase text-red-500/60 tracking-[0.2em] flex items-center gap-2">
+                                                                                    <ShieldAlert size={10} /> PROTOCOL_REJECTION: {violation.reason || 'UNTRUSTED_NODE'}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
                                                             )}
                                                         </div>
+                                                        <div className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl text-[9px] font-gray-500 uppercase tracking-[0.2em]">
+                                                            <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div>
+                                                            Telemetry Monitoring Active [ {new Date().toLocaleTimeString()} ]
+                                                        </div>
                                                     </div>
-
                                                 </div>
                                             )}
                                         </div>

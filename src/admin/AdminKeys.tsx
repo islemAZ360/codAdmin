@@ -300,8 +300,8 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border ${k.keyType === 'eternal' ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
+                                <div className="flex justify-center md:justify-start">
+                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider whitespace-nowrap border ${k.keyType === 'eternal' ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
                                         k.keyType === 'monthly' ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]' :
                                             'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
                                         }`}>
