@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { AlertTriangle, CheckCircle, Info, X, ChevronRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, ChevronRight } from 'lucide-react';
 
 type DialogType = 'alert' | 'confirm' | 'prompt';
 
