@@ -12,6 +12,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
     const [keys, setKeys] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'dormant' | 'linked'>('all');
     const [loading, setLoading] = useState(true);
     const [showGenModal, setShowGenModal] = useState(false);
     const [genType, setGenType] = useState<'monthly' | 'custom' | 'eternal'>('monthly');
@@ -145,11 +146,33 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `keys_export_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        const statusTag = filterStatus !== 'all' ? `_${filterStatus}` : '';
+        const typeTag = filterType !== 'all' ? `_${filterType}` : '';
+        link.setAttribute("download", `keys${typeTag}${statusTag}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    const exportForGGSel = () => {
+        const dormantKeys = filteredKeys.filter(k => !k.isUsed && !k.usedByUid);
+        if (dormantKeys.length === 0) {
+            alert('No dormant keys available to export for GGSel.');
+            return;
+        }
+        const content = dormantKeys.map(k => k.key).join('\n');
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        const typeTag = filterType !== 'all' ? `_${filterType}` : '';
+        link.setAttribute('download', `ggsel_keys${typeTag}_${format(new Date(), 'yyyy-MM-dd')}.txt`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        alert(`Exported ${dormantKeys.length} dormant keys for GGSel.`);
     };
 
     const getCountdown = (expiresAt: string) => {
@@ -177,8 +200,11 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
     const filteredKeys = keys.filter(k => {
         const matchesSearch = k.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (k.usedByEmail?.toLowerCase().includes(searchTerm.toLowerCase()));
-        const matchesFilter = filterType === 'all' || k.keyType === filterType;
-        return matchesSearch && matchesFilter;
+        const matchesType = filterType === 'all' || k.keyType === filterType;
+        const matchesStatus = filterStatus === 'all' ? true :
+            filterStatus === 'dormant' ? (!k.isUsed && !k.usedByUid) :
+            (!!k.isUsed || !!k.usedByUid);
+        return matchesSearch && matchesType && matchesStatus;
     });
 
     if (loading) return <div className="p-20 text-center animate-pulse text-white/20 uppercase tracking-[0.5em]">Syncing Vault...</div>;
@@ -213,6 +239,22 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                         </button>
                     ))}
                 </div>
+                <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                    {(['all', 'dormant', 'linked'] as const).map((status) => (
+                        <button
+                            key={status}
+                            onClick={() => setFilterStatus(status)}
+                            className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${filterStatus === status
+                                ? status === 'dormant' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                                : status === 'linked' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                : 'bg-white/10 text-white/60 border border-white/20'
+                                : 'text-white/30 hover:text-white/60'
+                                }`}
+                        >
+                            {status === 'all' ? '●' : status === 'dormant' ? '○ Free' : '◉ Linked'}
+                        </button>
+                    ))}
+                </div>
                 <div className="flex items-center gap-2">
                     {selectedKeys.length > 0 && (
                         <button
@@ -224,10 +266,17 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                         </button>
                     )}
                     <button
+                        onClick={exportForGGSel}
+                        className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500/20 hover:text-indigo-300 transition-all shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                        title="Export only dormant (unused) keys as plain text for GGSel upload"
+                    >
+                        GGSel Export
+                    </button>
+                    <button
                         onClick={exportToCSV}
                         className="bg-white/5 text-white/40 border border-white/10 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
                     >
-                        Export CSV
+                        Export CSV ({filteredKeys.length})
                     </button>
                     <button
                         onClick={() => setShowGenModal(true)}
