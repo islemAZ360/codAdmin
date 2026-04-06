@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ──────────────────────────────────────────────
+    // الدالة الخارقة: تعرّف الأدمن من إيميله مباشرة أو من المستند
+    // ──────────────────────────────────────────────
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'admin@islamguide.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // ──────────────────────────────────────────────
+    // قوانين المستخدمين
+    // ──────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null; 
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin()) 
+                    && (isAdmin() || !request.resource.data.keys().hasAny(['role']));
+      allow delete: if isAdmin();
+    }
+    
+    // ──────────────────────────────────────────────
+    // أسماء المستخدمين 
+    // ──────────────────────────────────────────────
+    match /usernames/{nickname} {
+      allow read: if true; 
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ──────────────────────────────────────────────
+    // الأخبار
+    // ──────────────────────────────────────────────
+    match /news/{newsId} {
+      allow read: if true; 
+      allow create, delete: if isAdmin();
+      allow update: if request.auth != null && (
+        isAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['poll'])
+      );
+    }
+
+    // ──────────────────────────────────────────────
+    // مفاتيح التفعيل (تم التصحيح هنا ✅)
+    // ──────────────────────────────────────────────
+    match /license_keys/{keyId} {
+      allow read: if request.auth != null;
+      allow update: if request.auth != null && (
+        resource.data.usedByUid == null ||              // يسمح بالتحديث إذا كان المفتاح جديداً (Empty)
+        resource.data.usedByUid == request.auth.uid ||   // أو إذا كان المستخدم هو المالك المسجل للمفتاح
+        isAdmin()                                        // أو إذا كان الأدمن
+      );
+      allow create, delete: if isAdmin();
+    }
+
+    // ──────────────────────────────────────────────
+    // غرف الدردشة والرسائل
+    // ──────────────────────────────────────────────
+    match /rooms/{roomId} {
+      allow read: if request.auth != null && (
+        resource.data.isPrivate == false || 
+        request.auth.uid in resource.data.participants || 
+        request.auth.uid in resource.data.admins || 
+        isAdmin()
+      );
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (
+        request.auth.uid in resource.data.admins || isAdmin()
+      );
+      
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null && (
+          get(/databases/$(database)/documents/rooms/$(roomId)).data.isPrivate == false || 
+          request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.participants || 
+          request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.admins || 
+          isAdmin()
+        );
+        allow delete: if request.auth != null && (
+          request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.admins || isAdmin()
+        );
+        allow update: if false;
+      }
+    }
+
+    // ──────────────────────────────────────────────
+    // الدعوات المباشرة
+    // ──────────────────────────────────────────────
+    match /invitations/{invitationId} {
+      allow read: if request.auth != null && (
+        resource.data.toId == request.auth.uid || 
+        resource.data.fromId == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if request.auth != null && request.resource.data.fromId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.toId == request.auth.uid;
+      allow delete: if request.auth != null && (
+        resource.data.fromId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // ──────────────────────────────────────────────
+    // الدعم الفني
+    // ──────────────────────────────────────────────
+    match /support_tickets/{ticketId} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+      
+      match /replies/{replyId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId == request.auth.uid || isAdmin()
+        );
+        allow create: if request.auth != null && (
+          request.resource.data.senderId == request.auth.uid || isAdmin()
+        );
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // ──────────────────────────────────────────────
+    // إعدادات وبيانات النظام
+    // ──────────────────────────────────────────────
+    match /app_versions/{versionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /system/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if request.auth != null && (
+        resource.data.reporterUid == request.auth.uid || isAdmin()
+      );
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    match /payment_requests/{requestId} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.licenseKey != null;
+      allow delete: if isAdmin();
+      allow update: if false;
+    }
+  }
+}
