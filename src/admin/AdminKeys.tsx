@@ -15,7 +15,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
     const [filterStatus, setFilterStatus] = useState<'all' | 'dormant' | 'linked'>('all');
     const [loading, setLoading] = useState(true);
     const [showGenModal, setShowGenModal] = useState(false);
-    const [genType, setGenType] = useState<'monthly' | 'custom' | 'eternal'>('monthly');
+    const [genType, setGenType] = useState<'trial' | 'monthly' | 'custom' | 'eternal'>('monthly');
     const [genCount, setGenCount] = useState(1);
     const [genDays, setGenDays] = useState(1);
     const [generating, setGenerating] = useState(false);
@@ -38,7 +38,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                 await setDoc(doc(db, 'license_keys', key), {
                     key,
                     keyType: genType,
-                    durationDays: genType === 'eternal' ? null : (genType === 'monthly' ? 30 : genDays),
+                    durationDays: genType === 'eternal' ? null : (genType === 'trial' ? (2 / 24) : (genType === 'monthly' ? 30 : genDays)),
                     expiresAt: null,
                     createdAt: new Date().toISOString(),
                     usedByUid: null,
@@ -226,7 +226,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5 mx-4">
-                    {['all', 'monthly', 'custom', 'eternal'].map((type) => (
+                    {['all', 'trial', 'monthly', 'custom', 'eternal'].map((type) => (
                         <button
                             key={type}
                             onClick={() => setFilterType(type)}
@@ -455,8 +455,9 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                             {/* Tier Selection */}
                             <div className="space-y-4">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500/50 ml-2">Tier Selection</label>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-4 gap-3">
                                     {[
+                                        { id: 'trial', label: 'Trial', icon: Zap },
                                         { id: 'monthly', label: 'Monthly', icon: Clock },
                                         { id: 'custom', label: 'Custom', icon: Zap },
                                         { id: 'eternal', label: 'Eternal', icon: Infinity },
@@ -506,7 +507,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                                 </div>
                                 <p className="text-xs text-white/40 leading-relaxed italic border-l-2 border-emerald-500/20 pl-4">
                                     Initializing {genCount} {genType} access {genCount > 1 ? 'sequences' : 'sequence'}.
-                                    {genType === 'eternal' ? ' Lifetime access granted per unit.' : ` Validity per unit: ${genType === 'monthly' ? '30 Days' : `${genDays} Days`}.`}
+                                    {genType === 'eternal' ? ' Lifetime access granted per unit.' : ` Validity per unit: ${genType === 'trial' ? '2 Hours' : (genType === 'monthly' ? '30 Days' : `${genDays} Days`)}.`}
                                 </p>
                             </div>
 
@@ -580,6 +581,7 @@ export const AdminKeys: React.FC<AdminKeysProps> = ({ users }) => {
                                         onChange={(e) => setEditData({ ...editData, keyType: e.target.value })}
                                         className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-indigo-500/30 font-bold text-xs appearance-none cursor-pointer"
                                     >
+                                        <option value="trial">Trial Protocol</option>
                                         <option value="monthly">Monthly Protocol</option>
                                         <option value="custom">Custom Protocol</option>
                                         <option value="eternal">Eternal Protocol</option>
